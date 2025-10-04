@@ -1,0 +1,22 @@
+[project]
+name = "mystorage"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "alembic>=1.16.5",
+    "authlib>=1.6.5",
+    "fastapi>=0.118.0",
+    "google-auth>=2.41.1",
+    "httpx>=0.28.1",
+    "passlib[bcrypt]>=1.7.4",
+    "pgvector>=0.4.1",
+    "psycopg2-binary>=2.9.10",
+    "pydantic-settings>=2.11.0",
+    "python-dotenv>=1.1.1",
+    "python-jose[cryptography]>=3.5.0",
+    "python-multipart>=0.0.20",
+    "sqlalchemy>=2.0.43",
+    "uvicorn>=0.37.0",
+]
