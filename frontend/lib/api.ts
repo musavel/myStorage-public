@@ -22,51 +22,16 @@ export interface Collection {
   slug: string;
   icon?: string;
   description?: string;
+  mongo_collection?: string;
+  field_definitions?: any;
   created_at: string;
   updated_at?: string;
 }
 
-export interface Book {
-  id: number;
+export interface Item {
+  _id: string;
   collection_id: number;
-  title: string;
-  author?: string;
-  publisher?: string;
-  isbn?: string;
-  description?: string;
-  image_url?: string;
-  published_date?: string;
-  page_count?: number;
-  category?: string;
-  purchase_date?: string;
-  purchase_price?: number;
-  location?: string;
-  notes?: string;
-  created_at: string;
-  updated_at?: string;
-}
-
-export interface BoardGame {
-  id: number;
-  collection_id: number;
-  title: string;
-  designer?: string;
-  publisher?: string;
-  year_published?: number;
-  description?: string;
-  image_url?: string;
-  min_players?: number;
-  max_players?: number;
-  min_playtime?: number;
-  max_playtime?: number;
-  min_age?: number;
-  complexity?: string;
-  category?: string;
-  purchase_date?: string;
-  purchase_price?: number;
-  location?: string;
-  expansion?: string;
-  notes?: string;
+  metadata: Record<string, any>;
   created_at: string;
   updated_at?: string;
 }
@@ -78,97 +43,21 @@ export async function getCollections(): Promise<Collection[]> {
   return res.json();
 }
 
-// Books
-export async function getBooks(): Promise<Book[]> {
-  const res = await fetch(`${API_URL}/api/books`, { cache: 'no-store' });
-  if (!res.ok) throw new Error('Failed to fetch books');
+export async function getCollection(id: number): Promise<Collection> {
+  const res = await fetch(`${API_URL}/api/collections/${id}`, { cache: 'no-store' });
+  if (!res.ok) throw new Error('Failed to fetch collection');
   return res.json();
 }
 
-export async function getBook(id: number): Promise<Book> {
-  const res = await fetch(`${API_URL}/api/books/${id}`, { cache: 'no-store' });
-  if (!res.ok) throw new Error('Failed to fetch book');
+// Items
+export async function getItems(collectionId: number): Promise<Item[]> {
+  const res = await fetch(`${API_URL}/api/items?collection_id=${collectionId}`, { cache: 'no-store' });
+  if (!res.ok) throw new Error('Failed to fetch items');
   return res.json();
 }
 
-// Board Games
-export async function getBoardGames(): Promise<BoardGame[]> {
-  const res = await fetch(`${API_URL}/api/board-games`, { cache: 'no-store' });
-  if (!res.ok) throw new Error('Failed to fetch board games');
+export async function getItem(collectionId: number, itemId: string): Promise<Item> {
+  const res = await fetch(`${API_URL}/api/items/${collectionId}/${itemId}`, { cache: 'no-store' });
+  if (!res.ok) throw new Error('Failed to fetch item');
   return res.json();
-}
-
-export async function getBoardGame(id: number): Promise<BoardGame> {
-  const res = await fetch(`${API_URL}/api/board-games/${id}`, { cache: 'no-store' });
-  if (!res.ok) throw new Error('Failed to fetch board game');
-  return res.json();
-}
-
-// Create/Update/Delete functions (require authentication)
-export async function createBook(data: Partial<Book>): Promise<Book> {
-  const res = await fetch(`${API_URL}/api/books`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...getAuthHeaders(),
-    },
-    body: JSON.stringify(data),
-  });
-  if (!res.ok) throw new Error('Failed to create book');
-  return res.json();
-}
-
-export async function updateBook(id: number, data: Partial<Book>): Promise<Book> {
-  const res = await fetch(`${API_URL}/api/books/${id}`, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-      ...getAuthHeaders(),
-    },
-    body: JSON.stringify(data),
-  });
-  if (!res.ok) throw new Error('Failed to update book');
-  return res.json();
-}
-
-export async function deleteBook(id: number): Promise<void> {
-  const res = await fetch(`${API_URL}/api/books/${id}`, {
-    method: 'DELETE',
-    headers: getAuthHeaders(),
-  });
-  if (!res.ok) throw new Error('Failed to delete book');
-}
-
-export async function createBoardGame(data: Partial<BoardGame>): Promise<BoardGame> {
-  const res = await fetch(`${API_URL}/api/board-games`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...getAuthHeaders(),
-    },
-    body: JSON.stringify(data),
-  });
-  if (!res.ok) throw new Error('Failed to create board game');
-  return res.json();
-}
-
-export async function updateBoardGame(id: number, data: Partial<BoardGame>): Promise<BoardGame> {
-  const res = await fetch(`${API_URL}/api/board-games/${id}`, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-      ...getAuthHeaders(),
-    },
-    body: JSON.stringify(data),
-  });
-  if (!res.ok) throw new Error('Failed to update board game');
-  return res.json();
-}
-
-export async function deleteBoardGame(id: number): Promise<void> {
-  const res = await fetch(`${API_URL}/api/board-games/${id}`, {
-    method: 'DELETE',
-    headers: getAuthHeaders(),
-  });
-  if (!res.ok) throw new Error('Failed to delete board game');
 }

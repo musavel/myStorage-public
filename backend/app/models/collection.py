@@ -19,6 +19,6 @@ class Collection(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    # 관계 설정 (레거시)
-    books = relationship("Book", back_populates="collection", cascade="all, delete-orphan")
-    board_games = relationship("BoardGame", back_populates="collection", cascade="all, delete-orphan")
+    # 관계 설정 (레거시) - MongoDB 마이그레이션 후 제거 예정
+    # books = relationship("Book", back_populates="collection", cascade="all, delete-orphan")
+    # board_games = relationship("BoardGame", back_populates="collection", cascade="all, delete-orphan")

@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
-from backend.app.api import collections_router, books_router, board_games_router, auth_router
+from backend.app.api import collections_router, auth_router
 from backend.app.api.items import router as items_router
 from backend.app.api.ai import router as ai_router
 from backend.app.db import Base, engine
@@ -39,8 +39,6 @@ app.add_middleware(
 # 라우터 등록
 app.include_router(auth_router, prefix="/api")
 app.include_router(collections_router, prefix="/api")
-app.include_router(books_router, prefix="/api")
-app.include_router(board_games_router, prefix="/api")
 app.include_router(items_router, prefix="/api")
 app.include_router(ai_router, prefix="/api")
 

@@ -11,8 +11,12 @@ class CollectionBase(BaseModel):
     description: Optional[str] = None
 
 
-class CollectionCreate(CollectionBase):
-    """컬렉션 생성 스키마 (mongo_collection은 자동 생성)"""
+class CollectionCreate(BaseModel):
+    """컬렉션 생성 스키마 (slug와 mongo_collection은 자동 생성 가능)"""
+    name: str
+    slug: Optional[str] = None  # 비워두면 AI가 자동 생성
+    icon: Optional[str] = None
+    description: Optional[str] = None
     field_definitions: Optional[Dict[str, Any]] = None
 
 

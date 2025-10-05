@@ -13,6 +13,7 @@
 ## 기술 스택
 
 ### 백엔드
+- **Python 3.13** - 프로그래밍 언어
 - **FastAPI** - Python 웹 프레임워크
 - **SQLAlchemy** - ORM
 - **PostgreSQL 17 + pgVector** - 메타데이터 및 컬렉션 정의 저장
@@ -20,7 +21,7 @@
 - **Motor** - Async MongoDB 드라이버
 - **Google OAuth 2.0** - 인증
 - **JWT (python-jose)** - 토큰 기반 인증
-- **LangChain & LangGraph 1.0 alpha** - AI 기능
+- **LangChain 0.3+ & LangGraph 1.0 alpha** - AI 기능
 - **OpenAI GPT / Google Gemini** - AI 모델
 
 ### 프론트엔드
@@ -45,8 +46,6 @@
   - GET `/items?collection_id={id}` - 목록 조회
   - POST `/items` - 생성 (Owner only)
   - PUT/DELETE `/items/{collection_id}/{item_id}` (Owner only)
-- ✅ **도서 관리 API** (`/api/books`) - 레거시 지원
-- ✅ **보드게임 관리 API** (`/api/board-games`) - 레거시 지원
 - ✅ **Google OAuth 인증** (`/api/auth/google`, `/api/auth/me`)
 - ✅ **AI 필드 추천** (`/api/ai/suggest-fields`) - Owner only
   - OpenAI GPT-4o Mini, GPT-4o, GPT-4.1, GPT-5 시리즈 지원
@@ -60,24 +59,39 @@
 ### 데이터베이스 (하이브리드 아키텍처)
 - ✅ **PostgreSQL** (메타데이터)
   - Collection: 컬렉션 정의 + `mongo_collection` 매핑 + `field_definitions` (JSONB)
-  - Book, BoardGame: 레거시 테이블 (호환성 유지)
 - ✅ **MongoDB** (실제 데이터)
-  - 동적 컬렉션: items_books, items_board_games 등
+  - 동적 컬렉션: items_* (예: items_books, items_games)
   - collection_id로 PostgreSQL과 연결
-  - metadata (JSONB): 자유로운 스키마 구조
+  - metadata (Object): 자유로운 스키마 구조
+
+### 백엔드 아키텍처
+- ✅ **Service Layer Pattern**
+  - API: 라우팅 및 요청/응답 처리만 담당
+  - Service: 비즈니스 로직 구현
+  - 서비스별 디렉토리 구조 (collection/, item/, ai/)
+- ✅ **SQLAlchemy 2.0 스타일** - select() 패턴 사용
 
 ### 프론트엔드
 - ✅ **Public 페이지** (조회 전용)
-  - 메인 페이지: 컬렉션 카드 + 소유자 이름
-  - 도서 목록 페이지
-  - 보드게임 목록 페이지
+  - 메인 페이지: 컬렉션 카드 + 소유자 이름 (모던 디자인)
 - ✅ **Admin 페이지** (Owner only)
   - Google OAuth 로그인/로그아웃
-  - 도서 관리 (CRUD 완성)
-  - 보드게임 관리 (CRUD 완성)
+  - 컬렉션 관리: 생성/수정/삭제 + AI 필드 추천
+  - AI 모델 설정 (텍스트/비전 모델 선택)
 - ✅ **인증 시스템**
   - AuthContext: JWT 토큰 관리 (localStorage)
   - 인증 상태 전역 관리
+- ✅ **컴포넌트**
+  - CollectionModal: 컬렉션 생성/수정 모달 (이모지 피커 포함)
+  - FieldDefinitionEditor: 필드 정의 테이블 에디터 (직접 추가/수정/삭제)
+  - AIFieldSuggestion: AI 필드 추천 UI
+  - ModelSelectionModal: AI 모델 선택 모달
+- ✅ **디자인 시스템 (Warehouse/Storage 테마)**
+  - Amber/Slate/Stone 컬러 팔레트 (창고 느낌)
+  - 그라디언트 배경 및 텍스트
+  - Hover 애니메이션 (scale, rotate, shadow)
+  - 반응형 그리드 레이아웃
+  - 50개 이모지 프리셋 (5개 카테고리)
 
 ## 빠른 시작
 
@@ -96,20 +110,23 @@ cp .env.example .env
 `.env` 파일 수정:
 ```bash
 # PostgreSQL Database
+POSTGRES_HOST=localhost       # Docker: postgres, Local: localhost
+POSTGRES_PORT=5432           # 기본 5432 (포트 충돌 시 변경 가능)
 POSTGRES_USER=your_username
 POSTGRES_PASSWORD=your_password
 POSTGRES_DB=mystorage
 
 # MongoDB Database
-MONGO_URL=mongodb://admin:admin@localhost:27017
-MONGO_DB=mystorage
+MONGO_HOST=localhost         # Docker: mongodb, Local: localhost
+MONGO_PORT=27017            # 기본 27017 (포트 충돌 시 변경 가능)
 MONGO_USER=your_username
 MONGO_PASSWORD=your_password
+MONGO_DB=mystorage
 
 # Auth
 OWNER_EMAIL=your-email@gmail.com
 OWNER_NAME=Your Name
-SECRET_KEY=your-random-secret-key  # 생성 명령: python -c "import secrets; print(secrets.token_urlsafe(32))"
+SECRET_KEY=your-random-secret-key  # 생성: python -c "import secrets; print(secrets.token_urlsafe(32))"
 GOOGLE_CLIENT_ID=your-google-client-id
 GOOGLE_CLIENT_SECRET=your-google-client-secret
 
@@ -124,8 +141,9 @@ NEXT_PUBLIC_OWNER_NAME=Your Name
 ```
 
 **주요 설정:**
+- 데이터베이스 연결 정보는 호스트, 포트, 사용자, 비밀번호로 분리 관리
 - `SECRET_KEY`: JWT 토큰 서명용 비밀키 (위 명령어로 생성)
-- `OWNER_NAME` / `NEXT_PUBLIC_OWNER_NAME`: 메인 페이지에 "{이름}'s Storage"로 표시됩니다
+- `OWNER_NAME` / `NEXT_PUBLIC_OWNER_NAME`: 메인 페이지에 "{이름}'s Storage"로 표시
 - `OPENAI_API_KEY`, `GEMINI_API_KEY`: AI 필드 추천 기능 사용 시 필요 (선택사항)
 
 ### 2. Google OAuth 설정
@@ -180,13 +198,20 @@ npm run dev
 myStorage/
 ├── backend/
 │   └── app/
-│       ├── api/                      # API 엔드포인트
+│       ├── api/                      # API 라우터 (라우팅만)
 │       │   ├── auth.py               # 인증
-│       │   ├── collections.py        # 컬렉션 CRUD (MongoDB 연동)
-│       │   ├── items.py              # 동적 아이템 CRUD
-│       │   ├── ai.py                 # AI 필드 추천 & 모델 관리
-│       │   ├── books.py              # 도서 (레거시)
-│       │   └── board_games.py        # 보드게임 (레거시)
+│       │   ├── collections.py        # 컬렉션 CRUD
+│       │   ├── items.py              # 아이템 CRUD
+│       │   └── ai.py                 # AI 필드 추천 & 모델 관리
+│       ├── services/                 # 비즈니스 로직
+│       │   ├── collection/
+│       │   │   └── collection_service.py
+│       │   ├── item/
+│       │   │   └── item_service.py
+│       │   └── ai/
+│       │       ├── settings.py              # AI 설정 관리
+│       │       ├── field_suggestion_service.py
+│       │       └── model_manager_service.py
 │       ├── core/                     # 핵심 설정
 │       │   ├── config.py             # 환경 변수
 │       │   ├── auth.py               # JWT 인증
@@ -197,20 +222,30 @@ myStorage/
 │       │   ├── base.py               # PostgreSQL
 │       │   └── mongodb.py            # MongoDB 연결
 │       ├── models/                   # SQLAlchemy 모델
-│       │   ├── collection.py
-│       │   ├── book.py
-│       │   └── board_game.py
+│       │   └── collection.py
 │       ├── schemas/                  # Pydantic 스키마
+│       │   ├── collection.py
+│       │   ├── item.py
+│       │   └── field_suggestion.py
 │       └── main.py                   # FastAPI 앱
 ├── frontend/                         # Next.js 앱
 │   ├── contexts/
 │   │   └── AuthContext.tsx           # 인증 상태 관리
+│   ├── components/                   # 공통 컴포넌트
+│   │   ├── CollectionModal.tsx       # 컬렉션 생성/수정 모달
+│   │   ├── FieldDefinitionEditor.tsx # 필드 정의 테이블 에디터
+│   │   ├── AIFieldSuggestion.tsx     # AI 필드 추천 UI
+│   │   └── ModelSelectionModal.tsx   # AI 모델 선택 모달
+│   ├── hooks/                        # 커스텀 훅
+│   │   └── useAISettings.ts          # AI 설정 관리 훅
+│   ├── types/                        # TypeScript 타입
+│   │   └── ai-models.ts              # AI 모델 타입 정의
 │   ├── app/
-│   │   ├── admin/                    # 관리자 페이지
-│   │   │   ├── books/                # 도서 관리
-│   │   │   └── board-games/          # 보드게임 관리
-│   │   ├── books/                    # Public 도서 목록
-│   │   └── board-games/              # Public 보드게임 목록
+│   │   ├── api/                      # Next.js API Routes (프록시)
+│   │   │   ├── collections/          # 컬렉션 API 프록시
+│   │   │   └── ai/                   # AI API 프록시
+│   │   └── admin/                    # 관리자 페이지
+│   │       └── collections/          # 컬렉션 관리 페이지
 │   └── lib/
 │       └── api.ts                    # API 클라이언트
 ├── scripts/
@@ -222,6 +257,7 @@ myStorage/
 ├── Dockerfile.frontend
 ├── COLLECTION_EXAMPLES.md            # 필드 정의 예시
 ├── AI_SETUP.md                       # AI 기능 설정 가이드
+├── AUTHENTICATION.md                 # 인증 및 보안 가이드
 ├── DEVELOPMENT.md                    # 개발 진행 상황
 └── README.md
 ```
@@ -285,14 +321,17 @@ curl http://localhost:8000/api/items?collection_id=1
 ## 라우팅 구조
 
 ### Public (인증 불필요)
-- `/` - 메인 페이지
-- `/books` - 도서 목록
-- `/board-games` - 보드게임 목록
+- `/` - 메인 페이지 (컬렉션 카드 그리드)
+- `/collections/[slug]` - 컬렉션별 아이템 목록 (향후 구현)
 
 ### Admin (소유자만 접근 가능)
 - `/admin` - 관리 대시보드
-- `/admin/books` - 도서 관리
-- `/admin/board-games` - 보드게임 관리
+  - 컬렉션 관리 링크
+  - AI 모델 설정
+- `/admin/collections` - 컬렉션 관리
+  - 컬렉션 생성/수정/삭제
+  - AI 필드 추천 기능
+- (향후) `/admin/collections/[slug]/items` - 아이템 관리
 
 ## 데이터베이스 아키텍처
 
@@ -312,11 +351,6 @@ curl http://localhost:8000/api/items?collection_id=1
     ]
   }
   ```
-
-**레거시 테이블 (호환성 유지)**
-- `Book`: 기존 도서 정보
-- `BoardGame`: 기존 보드게임 정보
-- 향후 MongoDB로 마이그레이션 예정
 
 #### MongoDB (실제 데이터)
 **동적 컬렉션** (예: items_books, items_board_games)
@@ -347,6 +381,30 @@ curl http://localhost:8000/api/items?collection_id=1
 - **Google**: Gemini 2.5 Flash, Flash Lite, Pro
 
 자세한 내용은 [AI_SETUP.md](./AI_SETUP.md)를 참고하세요.
+
+## 보안 및 인증
+
+### 인증 시스템 개요
+- **Google OAuth 2.0** 기반 인증
+- **소유자 이메일** 검증: `.env`의 `OWNER_EMAIL`과 일치하는 사용자만 관리 기능 접근
+- **JWT 토큰** 기반 세션 관리
+
+### API 보안
+모든 관리 API는 백엔드에서 `require_owner` 의존성으로 보호됩니다:
+
+- 🔒 **Owner only**: 컬렉션/아이템 생성/수정/삭제, AI 필드 추천, AI 모델 설정
+- ✅ **Public**: 컬렉션/아이템 조회, AI 모델 목록
+
+### 인증 흐름
+```
+사용자 → Google OAuth → 프론트엔드 → 백엔드 (JWT 발급) → localStorage 저장
+```
+
+자세한 내용은 [AUTHENTICATION.md](./AUTHENTICATION.md)를 참고하세요.
+
+### 보안 주의사항
+⚠️ 프론트엔드의 인증 체크는 UX 개선용이며, **실제 보안은 백엔드에서 처리**됩니다.
+누구나 백엔드 API를 직접 호출할 수 있지만, 유효한 토큰이 없으면 401 Unauthorized 응답을 받습니다.
 
 ## 문제 해결
 
@@ -382,12 +440,45 @@ npm install
 bash scripts/reset_database.sh
 ```
 
+### 401 Unauthorized 에러
+```bash
+# 원인: 인증 토큰이 없거나 유효하지 않음
+
+# 해결 방법:
+1. 로그아웃 후 다시 로그인
+2. 브라우저 개발자 도구 → Application → Local Storage에서 'auth_token' 확인
+3. 토큰이 만료되었을 수 있음 (다시 로그인)
+```
+
+### 403 Forbidden 에러
+```bash
+# 원인: 로그인한 이메일이 소유자 이메일과 다름
+
+# 해결 방법:
+1. .env 파일에서 OWNER_EMAIL 확인
+2. 해당 이메일로 Google 로그인
+```
+
 ## 다음 개발 계획
 
-1. **동적 컬렉션 UI** - 프론트엔드에서 컬렉션 생성/관리
-2. **AI 모델 선택 UI** - 관리자 페이지에서 AI 모델 설정
-3. **검색 및 필터링** - 제목/메타데이터 검색, 카테고리 필터
-4. **pgVector 활용** - 벡터 임베딩 기반 유사 아이템 추천
+### 우선순위 1: 아이템 관리 시스템 (다음 단계)
+1. **아이템 관리 페이지**
+   - `/admin/collections/[slug]/items` - 컬렉션별 아이템 CRUD
+   - 동적 폼 생성 (field_definitions 기반)
+   - text, textarea, number, date, select 타입 지원
+   - 필수 필드 검증 및 placeholder 표시
+   - 아이템 목록 테이블 (정렬/필터링)
+   - 이미지 업로드 (선택사항)
+
+2. **Public 아이템 목록 페이지**
+   - `/collections/[slug]` - 컬렉션별 아이템 조회
+   - 그리드/리스트 뷰 전환
+   - 정렬 및 검색 기능
+
+### 우선순위 2: 고급 기능
+- 검색 및 필터링 개선
+- pgVector 활용 (유사 아이템 추천)
+- 이미지 관리 시스템
 
 자세한 개발 진행 상황은 [DEVELOPMENT.md](./DEVELOPMENT.md)를 참고하세요.
 
