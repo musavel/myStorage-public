@@ -4,6 +4,18 @@ const API_URL = typeof window === 'undefined'
   ? process.env.API_URL_INTERNAL || 'http://backend:8000'
   : process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
+// 인증 헤더 생성 (클라이언트 사이드에서만)
+function getAuthHeaders(): HeadersInit {
+  if (typeof window === 'undefined') return {};
+
+  const token = localStorage.getItem('auth_token');
+  if (!token) return {};
+
+  return {
+    'Authorization': `Bearer ${token}`,
+  };
+}
+
 export interface Collection {
   id: number;
   name: string;
@@ -90,4 +102,73 @@ export async function getBoardGame(id: number): Promise<BoardGame> {
   const res = await fetch(`${API_URL}/api/board-games/${id}`, { cache: 'no-store' });
   if (!res.ok) throw new Error('Failed to fetch board game');
   return res.json();
+}
+
+// Create/Update/Delete functions (require authentication)
+export async function createBook(data: Partial<Book>): Promise<Book> {
+  const res = await fetch(`${API_URL}/api/books`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to create book');
+  return res.json();
+}
+
+export async function updateBook(id: number, data: Partial<Book>): Promise<Book> {
+  const res = await fetch(`${API_URL}/api/books/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to update book');
+  return res.json();
+}
+
+export async function deleteBook(id: number): Promise<void> {
+  const res = await fetch(`${API_URL}/api/books/${id}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error('Failed to delete book');
+}
+
+export async function createBoardGame(data: Partial<BoardGame>): Promise<BoardGame> {
+  const res = await fetch(`${API_URL}/api/board-games`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to create board game');
+  return res.json();
+}
+
+export async function updateBoardGame(id: number, data: Partial<BoardGame>): Promise<BoardGame> {
+  const res = await fetch(`${API_URL}/api/board-games/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error('Failed to update board game');
+  return res.json();
+}
+
+export async function deleteBoardGame(id: number): Promise<void> {
+  const res = await fetch(`${API_URL}/api/board-games/${id}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) throw new Error('Failed to delete board game');
 }

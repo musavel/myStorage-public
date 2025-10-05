@@ -15,6 +15,22 @@ services:
       timeout: 5s
       retries: 5
 
+  mongodb:
+    image: mongo:7
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-admin}
+      MONGO_INITDB_DATABASE: ${MONGO_DB:-mystorage}
+    volumes:
+      - mongo_data:/data/db
+    ports:
+      - "27017:27017"
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   backend:
     build:
       context: .
@@ -22,13 +38,18 @@ services:
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     environment:
-      # 데이터베이스 연결 정보
+      # PostgreSQL 연결 정보
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-mystorage}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       POSTGRES_DB: ${POSTGRES_DB:-mystorage}
+      # MongoDB 연결 정보
+      MONGO_URL: mongodb://${MONGO_USER:-admin}:${MONGO_PASSWORD:-admin}@mongodb:27017
+      MONGO_DB: ${MONGO_DB:-mystorage}
     depends_on:
       postgres:
+        condition: service_healthy
+      mongodb:
         condition: service_healthy
     volumes:
       - ./backend:/app/backend
@@ -52,3 +73,4 @@ services:
 
 volumes:
   postgres_data:
+  mongo_data:

@@ -8,62 +8,89 @@
 ### 1. 개발 환경 구축
 - ✅ mise 설치 및 설정 (Python 3.12, Node 22, PostgreSQL 17)
 - ✅ uv로 Python 패키지 관리
-- ✅ Docker Compose 환경 구성
+- ✅ Docker Compose 환경 구성 (PostgreSQL + MongoDB)
 - ✅ Next.js 프론트엔드 초기 설정
 
-### 2. 데이터베이스 설계
-- ✅ **Collection (컬렉션)**: 도서, 보드게임 등 카테고리 관리
-- ✅ **Book (도서)**: 도서 전용 테이블
-  - collection_id (외래키)
-  - 기본 정보: title, author, publisher, isbn
-  - 상세 정보: description, image_url, published_date, page_count
-  - 소장 정보: purchase_date, purchase_price, location, notes
-  - category (문자열): 장르/분류 (소설, 기술서 등)
-- ✅ **BoardGame (보드게임)**: 보드게임 전용 테이블
-  - collection_id (외래키)
-  - 기본 정보: title, designer, publisher, year_published
-  - 게임 정보: min/max_players, min/max_playtime, min_age, complexity
-  - 소장 정보: purchase_date, purchase_price, location, expansion, notes
-  - category (문자열): 장르/분류
+### 2. 데이터베이스 아키텍처 (MongoDB 하이브리드)
+#### PostgreSQL (메타데이터)
+- ✅ **Collection (컬렉션)**
+  - 기본 정보: id, name, slug, icon, description
+  - `mongo_collection`: MongoDB 컬렉션명 매핑
+  - `field_definitions` (JSONB): 메타데이터 필드 정의
+
+#### MongoDB (실제 데이터)
+- ✅ **동적 컬렉션**: items_books, items_board_games 등
+  - collection_id로 PostgreSQL과 연결
+  - metadata (JSONB): 자유로운 스키마 구조
+  - created_at, updated_at
+
+#### 레거시 테이블 (호환성 유지)
+- ✅ **Book (도서)**: 기존 구조 유지
+- ✅ **BoardGame (보드게임)**: 기존 구조 유지
+- 📝 향후 MongoDB로 마이그레이션 예정
 
 ### 3. 백엔드 API (FastAPI)
-- ✅ SQLAlchemy ORM 모델
-- ✅ Pydantic 스키마 (Create, Update, Response)
-- ✅ RESTful API 엔드포인트
-  - `/api/collections` - 컬렉션 CRUD
-  - `/api/books` - 도서 CRUD
-  - `/api/board-games` - 보드게임 CRUD
-  - `/api/auth/google` - Google OAuth 로그인
-  - `/api/auth/me` - 현재 사용자 정보
-- ✅ CORS 설정
-- ✅ Google OAuth 인증 시스템
-  - JWT 토큰 기반 인증
+#### 인증 시스템
+- ✅ Google OAuth 2.0 인증
+  - JWT 토큰 기반 (python-jose)
   - 소유자 이메일만 편집 가능
   - `require_owner` 의존성 함수
 
+#### RESTful API
+- ✅ `/api/collections` - 컬렉션 CRUD (Owner only)
+  - MongoDB 컬렉션 자동 생성/삭제
+  - slug → mongo_collection 자동 매핑
+  - SQL Injection 방지 검증
+- ✅ `/api/items` - 아이템 CRUD (동적 컬렉션)
+  - GET `/items?collection_id={id}` - 목록 조회
+  - POST `/items` - 생성 (Owner only)
+  - PUT/DELETE `/items/{collection_id}/{item_id}` (Owner only)
+- ✅ `/api/books` - 도서 CRUD (레거시)
+- ✅ `/api/board-games` - 보드게임 CRUD (레거시)
+- ✅ `/api/auth/google` - Google OAuth 로그인
+- ✅ `/api/auth/me` - 현재 사용자 정보
+
+#### AI 기능 (LangChain & LangGraph 1.0 alpha)
+- ✅ `/api/ai/suggest-fields` - AI 필드 추천 (Owner only)
+  - OpenAI GPT-4o Mini 지원
+  - Google Gemini 2.0 Flash 지원
+  - 컬렉션 이름 기반 메타데이터 자동 생성
+- ✅ `/api/ai/models` - AI 모델 목록 조회
+- ✅ `/api/ai/set-models` - AI 모델 설정 (Owner only)
+- ✅ `/api/ai/get-models` - 현재 설정 조회
+
+#### AI 모델 관리 시스템
+- ✅ AIModelManager: JSON 기반 모델 데이터베이스
+  - `backend/app/data/ai_models.json`
+  - OpenAI: GPT-4o Mini, GPT-4o, GPT-4.1, GPT-5 시리즈
+  - Google: Gemini 2.5 Flash, Pro, Lite
+  - 가격 정보, 모달리티 정보 포함
+- ✅ 설정된 모델 자동 사용
+- ✅ 비용 계산 기능
+
 ### 4. 프론트엔드 (Next.js)
+#### 인증 시스템
+- ✅ Google OAuth 클라이언트 통합 (@react-oauth/google)
+- ✅ AuthContext: JWT 토큰 관리 (localStorage)
+- ✅ 인증 상태 전역 관리
+
 #### 라우팅 구조
 - **Public (조회 전용)** ✅
-  - `/` - 메인 페이지 (컬렉션 카드 with 아이템 수)
+  - `/` - 메인 페이지 (컬렉션 카드)
   - `/books` - 도서 목록
   - `/board-games` - 보드게임 목록
 
-- **Admin (편집 가능, 로그인 필요)** ✅ 기본 구조
-  - `/admin` - 로그인 페이지
-  - `/admin/books` - 도서 관리 (CRUD) - 예정
-  - `/admin/board-games` - 보드게임 관리 (CRUD) - 예정
+- **Admin (Owner only)** ✅
+  - `/admin` - 관리 대시보드 (Google 로그인)
+  - `/admin/books` - 도서 관리 (CRUD 완성)
+  - `/admin/board-games` - 보드게임 관리 (CRUD 완성)
 
 #### 구현된 기능
-- ✅ Black & White 테마 적용
-- ✅ API 통신 라이브러리 (`lib/api.ts`)
-  - Docker 네트워크 내부/외부 주소 자동 분기
-  - SSR: `http://backend:8000`
-  - CSR: `http://localhost:8000`
-- ✅ 메인 페이지: 컬렉션 카드 표시, 아이템 수 카운트
-  - 소유자 이름 개인화 (`{OWNER_NAME}'s Storage`)
-- ✅ 도서 목록 페이지: 그리드 레이아웃, 이미지/메타데이터 표시
-- ✅ 보드게임 목록 페이지: 그리드 레이아웃, 게임 정보 표시
-- ✅ Admin 로그인 페이지 (UI만)
+- ✅ Google Sign-In 버튼 통합
+- ✅ 로그인/로그아웃 기능
+- ✅ 도서/보드게임 CRUD 폼 (모달)
+- ✅ API 통신 라이브러리 with 인증 헤더
+- ✅ Black & White 테마
 
 #### 디자인 시스템
 - 컬러: White background, Black text, Gray borders

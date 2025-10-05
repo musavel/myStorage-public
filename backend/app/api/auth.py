@@ -22,11 +22,17 @@ class GoogleAuthRequest(BaseModel):
     token: str  # Google ID Token
 
 
+class UserInfo(BaseModel):
+    """사용자 정보"""
+    email: str
+    name: str
+
+
 class TokenResponse(BaseModel):
     """토큰 응답"""
     access_token: str
     token_type: str = "bearer"
-    email: str
+    user: UserInfo
 
 
 @router.post("/google", response_model=TokenResponse)
@@ -44,8 +50,10 @@ async def google_auth(auth_request: GoogleAuthRequest):
             auth_request.token, requests.Request(), settings.GOOGLE_CLIENT_ID
         )
 
-        # 이메일 추출
+        # 이메일 및 이름 추출
         email = idinfo.get("email")
+        name = idinfo.get("name") or email.split("@")[0]  # 이름이 없으면 이메일 앞부분 사용
+
         if not email:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -62,7 +70,10 @@ async def google_auth(auth_request: GoogleAuthRequest):
         # JWT 토큰 생성
         access_token = create_access_token(data={"email": email})
 
-        return TokenResponse(access_token=access_token, email=email)
+        return TokenResponse(
+            access_token=access_token,
+            user=UserInfo(email=email, name=name)
+        )
 
     except ValueError as e:
         raise HTTPException(
