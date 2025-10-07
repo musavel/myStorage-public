@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Collection } from '@/lib/api';
 import AIFieldSuggestion from './AIFieldSuggestion';
 import FieldDefinitionEditor, { FieldDefinition } from './FieldDefinitionEditor';
@@ -37,6 +37,25 @@ export default function CollectionModal({
   const [isTranslatingSlug, setIsTranslatingSlug] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  // ESC 키로 닫기
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [isOpen, onClose]);
+
+  // 바깥 클릭으로 닫기
+  const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  };
 
   useEffect(() => {
     if (collection) {
@@ -154,8 +173,15 @@ export default function CollectionModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl border-2 border-slate-200 max-w-3xl w-full max-h-[90vh] overflow-y-auto m-4">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm"
+      onClick={handleBackdropClick}
+    >
+      <div
+        ref={modalRef}
+        className="bg-white rounded-2xl shadow-2xl border-2 border-slate-200 max-w-3xl w-full max-h-[90vh] overflow-y-auto m-4"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="sticky top-0 bg-gradient-to-b from-white to-stone-50 border-b-2 border-slate-200 px-8 py-6 rounded-t-2xl">
           <div className="flex items-center justify-between">

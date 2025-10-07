@@ -49,6 +49,13 @@ export async function getCollection(id: number): Promise<Collection> {
   return res.json();
 }
 
+export async function getCollectionBySlug(slug: string): Promise<Collection> {
+  const collections = await getCollections();
+  const collection = collections.find((c) => c.slug === slug);
+  if (!collection) throw new Error('Collection not found');
+  return collection;
+}
+
 // Items
 export async function getItems(collectionId: number): Promise<Item[]> {
   const res = await fetch(`${API_URL}/api/items?collection_id=${collectionId}`, { cache: 'no-store' });
@@ -60,4 +67,43 @@ export async function getItem(collectionId: number, itemId: string): Promise<Ite
   const res = await fetch(`${API_URL}/api/items/${collectionId}/${itemId}`, { cache: 'no-store' });
   if (!res.ok) throw new Error('Failed to fetch item');
   return res.json();
+}
+
+export async function createItem(collectionId: number, metadata: Record<string, any>): Promise<Item> {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+  const res = await fetch(`${API_URL}/api/items`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ collection_id: collectionId, metadata }),
+  });
+  if (!res.ok) throw new Error('Failed to create item');
+  return res.json();
+}
+
+export async function updateItem(collectionId: number, itemId: string, metadata: Record<string, any>): Promise<Item> {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+  const res = await fetch(`${API_URL}/api/items/${collectionId}/${itemId}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ metadata }),
+  });
+  if (!res.ok) throw new Error('Failed to update item');
+  return res.json();
+}
+
+export async function deleteItem(collectionId: number, itemId: string): Promise<void> {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+  const res = await fetch(`${API_URL}/api/items/${collectionId}/${itemId}`, {
+    method: 'DELETE',
+    headers: {
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+    },
+  });
+  if (!res.ok) throw new Error('Failed to delete item');
 }

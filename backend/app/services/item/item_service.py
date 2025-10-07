@@ -67,6 +67,22 @@ async def create_item(item_data: ItemCreate, db: Session) -> Dict[str, Any]:
 
     mongo_db = get_database()
     item_dict = item_data.model_dump()
+
+    # title이 없으면 metadata에서 첫 번째 값을 사용 (또는 기본값)
+    if not item_dict.get("title"):
+        metadata = item_dict.get("metadata", {})
+        # 일반적인 title 필드들 시도
+        for title_key in ["title", "name", "제목", "이름"]:
+            if title_key in metadata:
+                item_dict["title"] = metadata[title_key]
+                break
+        # 그래도 없으면 첫 번째 값 사용
+        if not item_dict.get("title") and metadata:
+            first_value = list(metadata.values())[0]
+            item_dict["title"] = str(first_value) if first_value else "Untitled"
+        elif not item_dict.get("title"):
+            item_dict["title"] = "Untitled"
+
     item_dict["created_at"] = datetime.utcnow()
     item_dict["updated_at"] = None
 

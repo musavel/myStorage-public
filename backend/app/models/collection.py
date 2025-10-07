@@ -16,6 +16,7 @@ class Collection(Base):
     icon = Column(String, nullable=True)  # 아이콘 이름 또는 이모지
     description = Column(String, nullable=True)  # 컬렉션 설명
     field_definitions = Column(JSONB, nullable=True)  # 메타데이터 필드 정의
+    field_mapping = Column(JSONB, nullable=True)  # 스크래핑 필드 매핑 설정 {"mapping": {...}, "ignore_unmapped": bool}
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 

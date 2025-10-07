@@ -55,10 +55,16 @@
   - JSON 기반 모델 데이터베이스
   - 설정된 모델 자동 사용
   - 비용 계산 기능
+- ✅ **웹 스크래핑 API** (`/api/scraper`) - Owner only
+  - Playwright 기반 headless 브라우저 크롤링
+  - 사이트별 특화 파싱 (교보문고, 알라딘)
+  - 단일 URL 스크래핑 및 아이템 생성
+  - CSV 일괄 등록 (진행 상황 추적)
+  - 필드 매핑 시스템 (스크래핑 필드 → 사용자 필드)
 
 ### 데이터베이스 (하이브리드 아키텍처)
 - ✅ **PostgreSQL** (메타데이터)
-  - Collection: 컬렉션 정의 + `mongo_collection` 매핑 + `field_definitions` (JSONB)
+  - Collection: 컬렉션 정의 + `mongo_collection` 매핑 + `field_definitions` (JSONB) + `field_mapping` (JSONB)
 - ✅ **MongoDB** (실제 데이터)
   - 동적 컬렉션: items_* (예: items_books, items_games)
   - collection_id로 PostgreSQL과 연결
@@ -74,9 +80,11 @@
 ### 프론트엔드
 - ✅ **Public 페이지** (조회 전용)
   - 메인 페이지: 컬렉션 카드 + 소유자 이름 (모던 디자인)
+  - 컬렉션 아이템 목록 페이지: 그리드/리스트 뷰 전환, 검색, 정렬
 - ✅ **Admin 페이지** (Owner only)
   - Google OAuth 로그인/로그아웃
   - 컬렉션 관리: 생성/수정/삭제 + AI 필드 추천
+  - 아이템 관리: 생성/수정/삭제 + URL 스크래핑 + CSV 일괄 등록
   - AI 모델 설정 (텍스트/비전 모델 선택)
 - ✅ **인증 시스템**
   - AuthContext: JWT 토큰 관리 (localStorage)
@@ -86,6 +94,9 @@
   - FieldDefinitionEditor: 필드 정의 테이블 에디터 (직접 추가/수정/삭제)
   - AIFieldSuggestion: AI 필드 추천 UI
   - ModelSelectionModal: AI 모델 선택 모달
+  - ItemModal: 아이템 생성/수정 모달 (URL 스크래핑 모드 지원)
+  - BulkImportModal: CSV 일괄 등록 모달 (실시간 진행 상황 표시)
+  - FieldMappingModal: 필드 매핑 UI (자동/수동 매칭, 저장 옵션)
 - ✅ **디자인 시스템 (Warehouse/Storage 테마)**
   - Amber/Slate/Stone 컬러 팔레트 (창고 느낌)
   - 그라디언트 배경 및 텍스트
@@ -202,12 +213,15 @@ myStorage/
 │       │   ├── auth.py               # 인증
 │       │   ├── collections.py        # 컬렉션 CRUD
 │       │   ├── items.py              # 아이템 CRUD
+│       │   ├── scraper.py            # 웹 스크래핑 & 필드 매핑
 │       │   └── ai.py                 # AI 필드 추천 & 모델 관리
 │       ├── services/                 # 비즈니스 로직
 │       │   ├── collection/
 │       │   │   └── collection_service.py
 │       │   ├── item/
 │       │   │   └── item_service.py
+│       │   ├── scraper/
+│       │   │   └── web_scraper.py    # Playwright 스크래핑
 │       │   └── ai/
 │       │       ├── settings.py              # AI 설정 관리
 │       │       ├── field_suggestion_service.py
@@ -226,6 +240,7 @@ myStorage/
 │       ├── schemas/                  # Pydantic 스키마
 │       │   ├── collection.py
 │       │   ├── item.py
+│       │   ├── scraper.py            # 스크래핑 관련 스키마
 │       │   └── field_suggestion.py
 │       └── main.py                   # FastAPI 앱
 ├── frontend/                         # Next.js 앱
@@ -235,7 +250,10 @@ myStorage/
 │   │   ├── CollectionModal.tsx       # 컬렉션 생성/수정 모달
 │   │   ├── FieldDefinitionEditor.tsx # 필드 정의 테이블 에디터
 │   │   ├── AIFieldSuggestion.tsx     # AI 필드 추천 UI
-│   │   └── ModelSelectionModal.tsx   # AI 모델 선택 모달
+│   │   ├── ModelSelectionModal.tsx   # AI 모델 선택 모달
+│   │   ├── ItemModal.tsx             # 아이템 생성/수정 모달
+│   │   ├── BulkImportModal.tsx       # CSV 일괄 등록 모달
+│   │   └── FieldMappingModal.tsx     # 필드 매핑 UI
 │   ├── hooks/                        # 커스텀 훅
 │   │   └── useAISettings.ts          # AI 설정 관리 훅
 │   ├── types/                        # TypeScript 타입
@@ -243,9 +261,14 @@ myStorage/
 │   ├── app/
 │   │   ├── api/                      # Next.js API Routes (프록시)
 │   │   │   ├── collections/          # 컬렉션 API 프록시
+│   │   │   ├── items/                # 아이템 API 프록시
+│   │   │   ├── scraper/              # 스크래핑 API 프록시
 │   │   │   └── ai/                   # AI API 프록시
+│   │   ├── collections/              # Public 페이지
+│   │   │   └── [slug]/               # 컬렉션 아이템 목록
 │   │   └── admin/                    # 관리자 페이지
 │   │       └── collections/          # 컬렉션 관리 페이지
+│   │           └── [slug]/items/     # 아이템 관리 페이지
 │   └── lib/
 │       └── api.ts                    # API 클라이언트
 ├── scripts/
@@ -318,11 +341,39 @@ curl -X POST http://localhost:8000/api/items \
 curl http://localhost:8000/api/items?collection_id=1
 ```
 
+### URL 스크래핑 (Owner only)
+```bash
+curl -X POST http://localhost:8000/api/scraper/scrape-url \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://product.kyobobook.co.kr/detail/S000001713046",
+    "collection_id": 1,
+    "apply_mapping": true
+  }'
+```
+
+### 필드 매핑 저장 (Owner only)
+```bash
+curl -X POST http://localhost:8000/api/scraper/save-mapping \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "collection_id": 1,
+    "mapping": {
+      "title": "책제목",
+      "author": "저자명",
+      "publisher": "출판사명"
+    },
+    "ignore_unmapped": true
+  }'
+```
+
 ## 라우팅 구조
 
 ### Public (인증 불필요)
 - `/` - 메인 페이지 (컬렉션 카드 그리드)
-- `/collections/[slug]` - 컬렉션별 아이템 목록 (향후 구현)
+- `/collections/[slug]` - 컬렉션별 아이템 목록 (그리드/리스트 뷰, 검색, 정렬)
 
 ### Admin (소유자만 접근 가능)
 - `/admin` - 관리 대시보드
@@ -331,7 +382,11 @@ curl http://localhost:8000/api/items?collection_id=1
 - `/admin/collections` - 컬렉션 관리
   - 컬렉션 생성/수정/삭제
   - AI 필드 추천 기능
-- (향후) `/admin/collections/[slug]/items` - 아이템 관리
+- `/admin/collections/[slug]/items` - 아이템 관리
+  - 아이템 생성/수정/삭제
+  - URL 스크래핑 기능
+  - CSV 일괄 등록 (진행 상황 표시)
+  - 필드 매핑 설정
 
 ## 데이터베이스 아키텍처
 
@@ -342,13 +397,23 @@ curl http://localhost:8000/api/items?collection_id=1
 - `id`, `name`, `slug`, `icon`, `description`
 - `mongo_collection` (String): MongoDB 컬렉션명 매핑
 - `field_definitions` (JSONB): 메타데이터 필드 정의
-- 예시:
   ```json
   {
     "fields": [
       {"key": "author", "label": "저자", "type": "text", "required": false},
       {"key": "category", "label": "카테고리", "type": "select", "options": ["소설", "기술서"]}
     ]
+  }
+  ```
+- `field_mapping` (JSONB): 스크래핑 필드 매핑 설정
+  ```json
+  {
+    "mapping": {
+      "title": "책제목",
+      "author": "저자명",
+      "publisher": "출판사명"
+    },
+    "ignore_unmapped": true
   }
   ```
 
@@ -461,24 +526,32 @@ bash scripts/reset_database.sh
 
 ## 다음 개발 계획
 
-### 우선순위 1: 아이템 관리 시스템 (다음 단계)
-1. **아이템 관리 페이지**
-   - `/admin/collections/[slug]/items` - 컬렉션별 아이템 CRUD
-   - 동적 폼 생성 (field_definitions 기반)
-   - text, textarea, number, date, select 타입 지원
-   - 필수 필드 검증 및 placeholder 표시
-   - 아이템 목록 테이블 (정렬/필터링)
-   - 이미지 업로드 (선택사항)
+### 우선순위 1: 필드 매핑 로직 재설계 ⚠️
+**현재 문제**: 스크래핑 결과 중심 매핑으로 인해 못 가져온 필드가 많음
 
-2. **Public 아이템 목록 페이지**
-   - `/collections/[slug]` - 컬렉션별 아이템 조회
-   - 그리드/리스트 뷰 전환
-   - 정렬 및 검색 기능
+**개선 방향**:
+- 사용자 정의 메타 필드를 기준으로 UI 구성
+- 각 사용자 필드마다 스크래핑 데이터 선택 매핑
+- 스크래핑 못한 필드는 수동 입력 가능
+- 예시:
+  ```
+  [사용자 필드: 책제목] ← [스크래핑: title 선택]
+  [사용자 필드: 저자명] ← [스크래핑: author 선택]
+  [사용자 필드: 가격]   ← [없음 → 수동 입력]
+  ```
 
-### 우선순위 2: 고급 기능
+### 우선순위 2: 스크래핑 통합
+1. **ItemModal에 필드 매핑 UI 통합**
+   - URL 스크래핑 후 FieldMappingModal 자동 표시
+   - 매핑 적용 후 폼에 자동 입력
+
+2. **BulkImportModal에 필드 매핑 통합**
+   - CSV 업로드 시 저장된 매핑 자동 적용
+
+### 우선순위 3: 고급 기능
+- 이미지 업로드 및 관리 시스템
 - 검색 및 필터링 개선
 - pgVector 활용 (유사 아이템 추천)
-- 이미지 관리 시스템
 
 자세한 개발 진행 상황은 [DEVELOPMENT.md](./DEVELOPMENT.md)를 참고하세요.
 

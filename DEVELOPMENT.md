@@ -238,7 +238,7 @@
 
 ---
 
-## 📅 2025-10-06 (화) - 컬렉션 UI 완성 & Warehouse 테마
+## 📅 2025-10-06 (월) - 컬렉션 UI 완성 & Warehouse 테마
 
 #### 1. 디자인 테마 전면 개편
 - ✅ **Warehouse/Storage 테마 적용**
@@ -316,6 +316,322 @@
   - 저장: `{ fields: FieldDefinition[] }` 객체
   - 불러올 때 배열로 변환
   - 저장할 때 객체로 변환
+
+---
+
+## 📅 2025-10-06 (월) - URL 크롤링 & CSV 일괄 등록
+
+#### 1. Playwright 웹 스크래핑 시스템
+- ✅ **pyproject.toml에 의존성 추가**
+  - playwright>=1.49.0
+  - beautifulsoup4>=4.12.0
+- ✅ **WebScraper 서비스** (`backend/app/services/scraper/web_scraper.py`)
+  - Playwright headless 브라우저로 JavaScript 렌더링된 페이지 크롤링
+  - BeautifulSoup으로 HTML 파싱
+  - Open Graph, Twitter Card, JSON-LD 메타데이터 추출
+  - **사이트별 특화 파싱**:
+    - URL 도메인 자동 감지 (kyobobook.co.kr, aladin.co.kr)
+    - **교보문고**: 제목, 저자, 출판사, 출판일, 가격, ISBN, 설명
+    - **알라딘**: 제목, 저자(복수), 출판사, 출판일, 가격, ISBN, 설명
+    - CSS 셀렉터 기반 동적 정보 추출
+  - Context manager 패턴으로 브라우저 리소스 관리
+  - 단일/배치 스크래핑 지원
+
+#### 2. 스크래핑 API 구현
+- ✅ **백엔드 API** (`backend/app/api/scraper.py`)
+  - `POST /api/scraper/scrape-url`: 단일 URL 스크래핑
+  - `POST /api/scraper/scrape-and-create`: URL 스크래핑 후 아이템 생성
+  - `POST /api/scraper/bulk-scrape`: 여러 URL 일괄 스크래핑
+  - `POST /api/scraper/bulk-scrape-csv`: CSV 파일 업로드 일괄 처리
+    - UTF-8 인코딩 검증
+    - 헤더 자동 감지 (URL, link, 주소)
+    - 에러 핸들링 및 개별 실패 보고
+- ✅ **스키마 정의** (`backend/app/schemas/scraper.py`)
+  - ScrapeUrlRequest, ScrapeUrlResponse
+  - BulkScrapeRequest, BulkScrapeResponse, BulkScrapeProgress
+
+#### 3. ItemModal URL 입력 모드
+- ✅ **frontend/components/ItemModal.tsx**
+  - 입력 모드 토글: 직접 입력 / URL로 가져오기
+  - URL 입력 필드 + "정보 가져오기" 버튼
+  - 스크래핑된 데이터 자동 폼 입력
+  - 수동 모드로 전환하여 수정 가능
+  - 로딩 스피너 및 에러 처리
+  - 교보문고/알라딘 등 안내 문구
+
+#### 4. CSV 일괄 등록 시스템
+- ✅ **BulkImportModal 컴포넌트** (`frontend/components/BulkImportModal.tsx`)
+  - CSV 파일 드래그 앤 드롭 지원
+  - 실시간 진행 상황 표시:
+    - 프로그레스 바 (0-100%)
+    - 전체/성공/실패 통계
+    - 에러 목록 표시
+  - 파일 형식 안내 UI
+  - 성공 시 3초 후 자동 닫기
+- ✅ **아이템 관리 페이지 통합**
+  - "📋 CSV 일괄 등록" 버튼 추가
+  - 모달 방식으로 UX 개선
+
+#### 5. Next.js API 프록시
+- ✅ **프론트엔드 API Routes**
+  - `/api/scraper/scrape-url`
+  - `/api/scraper/bulk-scrape`
+  - `/api/scraper/bulk-scrape-csv`
+  - FormData 전달 지원 (CSV 업로드)
+
+#### 6. 사용자 경험 개선
+- ✅ **입력 편의성**
+  - URL 붙여넣기만으로 자동 정보 입력
+  - CSV로 대량 아이템 한 번에 등록
+  - 진행 상황 실시간 모니터링
+- ✅ **에러 핸들링**
+  - 개별 URL 실패 시에도 나머지 계속 진행
+  - 상세한 에러 메시지 제공
+  - 성공/실패 건수 통계
+
+## 📅 2025-10-06 (월) - 필드 매핑 시스템 & 스크래핑 개선
+
+#### 1. 필드 매핑 시스템 구현
+- ✅ **Collection 모델 확장**
+  - `field_mapping` JSONB 컬럼 추가
+  - 구조: `{"mapping": {"title": "책제목", ...}, "ignore_unmapped": bool}`
+  - 스크래핑 필드명 → 사용자 정의 필드명 매핑
+
+- ✅ **필드 매핑 API** (`backend/app/api/scraper.py`)
+  - `POST /api/scraper/save-mapping`: 매핑 설정 저장
+  - `GET /api/scraper/get-mapping/{collection_id}`: 저장된 매핑 조회
+  - `apply_mapping` 옵션 추가 (scrape-url)
+
+- ✅ **필드 매핑 스키마** (`backend/app/schemas/scraper.py`)
+  - `FieldMappingRequest`: mapping dict + ignore_unmapped bool
+  - `ScrapeUrlRequest`에 `apply_mapping: bool` 추가
+
+- ✅ **apply_field_mapping() 함수** (`backend/app/services/scraper/web_scraper.py`)
+  - 스크래핑 데이터에 매핑 적용
+  - `ignore_unmapped=True`: 매핑된 필드만 저장 (기본, 추천)
+  - `ignore_unmapped=False`: 매핑 안 된 필드도 원래 키로 저장
+  - 예시:
+    ```python
+    # 스크래핑: {"title": "...", "author": "...", "extra": "..."}
+    # 매핑: {"title": "책제목", "author": "저자명"}
+    # ignore_unmapped=True: {"책제목": "...", "저자명": "..."}
+    # ignore_unmapped=False: {"책제목": "...", "저자명": "...", "extra": "..."}
+    ```
+
+#### 2. FieldMappingModal 컴포넌트
+- ✅ **frontend/components/FieldMappingModal.tsx**
+  - **자동 매칭 로직**:
+    - 정확히 일치하는 필드 우선 (exact match)
+    - 유사한 이름 검색 (similar match)
+    - 대소문자 무시, label까지 검색
+  - **수동 매핑**:
+    - 각 스크래핑 필드별 드롭다운
+    - "매핑 안 함" 옵션 지원
+    - 실시간 미리보기 표시
+  - **통계 및 옵션**:
+    - 매핑된/안 된 필드 개수 표시
+    - "매핑되지 않은 필드 무시" 체크박스
+      - 체크 시: amber 배경 (추천, 매핑된 필드만 저장)
+      - 해제 시: blue 배경 (모든 필드 저장)
+    - "이 매핑 설정을 저장" 체크박스
+      - 다음 스크래핑 시 자동 적용
+      - 일괄 등록에도 적용
+  - **UI/UX**:
+    - 테이블 형태 매핑 인터페이스
+    - "🤖 자동 매칭" 버튼
+    - 스크래핑 필드 → 내 필드 화살표 표시
+    - 데이터 미리보기 (50자 제한)
+
+#### 3. ISBN 파싱 개선
+- ✅ **13자리 ISBN 우선 처리**
+  - 정규식: `r'ISBN[:\s]*(\d{13})'` 우선 검색
+  - 실패 시 10자리 fallback: `r'ISBN[:\s]*(\d{10})'`
+  - 교보문고, 알라딘 파서 모두 적용
+
+#### 4. Dockerfile 업데이트
+- ✅ **Playwright 설치 명령 추가**
+  - `RUN uv run playwright install chromium`
+  - `RUN uv run playwright install-deps`
+  - headless 브라우저 의존성 자동 설치
+
+#### 5. 스크래핑 매핑 통합
+- ✅ **단일 URL 스크래핑 시 매핑 자동 적용**
+  - `apply_mapping=True`인 경우 저장된 매핑 자동 적용
+  - 신규 형식 `{"mapping": {...}, "ignore_unmapped": bool}` 지원
+  - 레거시 형식 (단순 dict) 호환성 유지
+
+#### 6. 향후 작업
+- 🔲 **ItemModal에 필드 매핑 UI 통합**
+  - URL 스크래핑 후 매핑 모달 표시
+  - 매핑 적용 후 폼에 자동 입력
+- 🔲 **BulkImportModal에 필드 매핑 통합**
+  - CSV 업로드 시 매핑 설정 옵션
+  - 저장된 매핑 자동 적용
+- 🔲 **Database Migration**
+  - 기존 Collection 레코드에 field_mapping 컬럼 추가
+
+---
+
+## 📅 2025-10-06 (월) - 스크래핑 버그 수정 & 모달 UX 개선
+
+#### 1. 스크래핑 버그 수정
+- ✅ **`page.url` await 버그 수정** (`web_scraper.py:143`)
+  - 문제: `await page.url` - TypeError 발생 (속성은 await 불가)
+  - 수정: `page.url`로 변경
+
+- ✅ **JSON-LD 파싱 타입 안전성 개선** (`web_scraper.py:119-131`)
+  - 문제: `author`, `publisher`가 dict가 아닐 수 있음
+  - 수정: `isinstance()` 체크로 dict와 string 모두 처리
+
+- ✅ **에러 로깅 시스템 추가**
+  - `logger.error()` + `traceback.format_exc()`로 상세 스택 출력
+  - API 레벨 (`scraper.py`) 및 서비스 레벨 (`web_scraper.py`) 로깅
+  - print → logger.warning 변경
+
+#### 2. 모달 UX 개선
+- ✅ **모든 모달에 바깥 클릭 및 ESC 키로 닫기 기능 추가**
+  - CollectionModal
+  - ItemModal
+  - BulkImportModal (진행 중일 때는 닫기 불가)
+  - FieldMappingModal
+  - ModelSelectionModal
+  - `useEffect()` + `handleBackdropClick()` 패턴 적용
+
+#### 3. 프론트엔드 일관성 개선
+- ✅ **버튼 텍스트 통일**
+  - "아이템 추가" → "새 아이템"으로 통일
+  - "컬렉션 추가" → "새 컬렉션"으로 통일
+
+---
+
+## 📅 2025-10-07 (화) - 필드 매핑 로직 재설계
+
+#### 1. 필드 매핑 방향 전환 ✅
+- **기존 방식**: 스크래핑한 필드 → 사용자 필드로 매핑 (스크래핑 결과 중심)
+  - 문제점: 스크래핑 못 가져온 필드가 많음 (사이트별 파서 한계)
+- **새로운 방식**: 사용자 필드 중심 매핑
+  - 사용자가 정의한 필드 목록을 기준으로 UI 구성
+  - 각 사용자 필드마다 스크래핑 데이터 중 선택
+  - 스크래핑 데이터에 없으면 직접 수동 입력 가능
+
+#### 2. FieldMappingModal 완전 재설계 ✅
+- **새로운 UI 구조**:
+  - 테이블: `내 필드` ← `스크래핑 데이터 선택` | `또는 직접 입력`
+  - 각 사용자 필드마다 한 행씩 표시
+  - 필드명, 라벨, 필수 여부 표시
+- **매핑 방식**:
+  - 드롭다운에서 스크래핑 데이터 선택 (미리보기 포함)
+  - 스크래핑 데이터 선택 시 수동 입력 비활성화
+  - 선택하지 않으면 직접 입력 가능
+- **자동 매칭 개선**:
+  - 사용자 필드 기준으로 유사한 스크래핑 필드 찾기
+  - 정확히 일치하는 필드 우선, 부분 일치 fallback
+- **매핑 통계**:
+  - 매핑된/비어있는 필드 개수 표시
+  - 매핑 설정 저장 옵션
+
+#### 3. ItemModal 통합 ✅
+- **URL 스크래핑 플로우**:
+  1. URL 입력 → 스크래핑
+  2. 저장된 매핑 자동 로드
+  3. FieldMappingModal 표시
+  4. 사용자가 매핑 확인/수정
+  5. 매핑 적용 → 폼에 자동 입력
+  6. 매핑 저장 옵션 선택 시 백엔드에 저장
+- **매핑 형식 변환**:
+  - 프론트엔드: `{ "책제목": "title", "저자명": "author" }` (사용자 → 스크래핑)
+  - 백엔드: `{ "title": "책제목", "author": "저자명" }` (스크래핑 → 사용자)
+  - 저장/불러오기 시 자동 변환
+
+#### 4. BulkImportModal 지원 ✅
+- **자동 매핑 적용**:
+  - CSV 일괄 등록 시 저장된 매핑 자동 적용
+  - 별도 UI 작업 불필요 (백엔드에서 처리)
+  - `apply_field_mapping` 함수가 일괄 스크래핑에도 적용됨
+
+#### 5. 사용자 경험 개선
+- **직관적인 UI**:
+  - 내 필드가 먼저 보임 (좌측)
+  - 화살표(←)로 방향성 명확히 표시
+  - 스크래핑 데이터 미리보기 (50자 제한)
+- **유연한 입력**:
+  - 스크래핑 데이터가 없어도 수동 입력으로 보완 가능
+  - 필수 필드는 빨간 별표(*)로 표시
+- **자동화**:
+  - 한 번 매핑 저장하면 다음부터 자동 적용
+  - 일괄 등록에도 동일한 매핑 사용
+
+---
+
+## 📅 2025-10-07 (화) - 버그 수정 및 개선
+
+#### 1. 교보문고 ISBN 파싱 수정 ✅
+- **문제**: 교보문고 페이지 구조 변경으로 ISBN 추출 실패 (null 반환)
+- **1차 시도 실패 원인**: `.info_detail_wrap` 셀렉터가 더 이상 존재하지 않음
+- **2차 시도 실패 원인**: `_parse_kyobo` 함수 내부에서 로컬 빈 `metadata`를 사용하여 이미 추출된 `image` 정보에 접근 불가
+- **최종 해결**:
+  - `_parse_kyobo` 함수에 `existing_metadata` 파라미터 추가
+  - `existing_metadata['image']`에서 ISBN 추출
+  - 패턴: `https://contents.kyobobook.co.kr/sih/fit-in/458x0/pdt/9791136287489.jpg`
+  - 정규식: `/pdt/(\d{13})\.`
+  - Fallback: 페이지 텍스트에서 정규식 검색
+- **교훈**: 사이트별 특화 파싱 함수에서 일반 파싱에서 이미 추출된 메타데이터에 접근해야 할 경우, 파라미터로 전달 필요
+
+#### 2. 알라딘 작가 정보 HTML 엔티티 디코딩 ✅
+- **문제**: `尾田&#26628;一&#37070;` 형태로 표시됨
+- **원인**: HTML 엔티티가 디코딩되지 않음
+- **해결**: `html.unescape()` 함수 적용
+  - `import html`
+  - `text = html.unescape(text)`
+
+#### 3. 아이템 생성 422 에러 수정 ✅
+- **문제**: `POST /api/items` 요청 시 422 Unprocessable Content
+- **원인**: `ItemCreate` 스키마에서 `title` 필드가 필수였으나 프론트엔드에서 전송하지 않음
+- **해결**:
+  - 백엔드 스키마: `title`을 Optional로 변경
+  - 아이템 생성 서비스: metadata에서 title 자동 추출
+    - 우선순위: `title`, `name`, `제목`, `이름` 필드
+    - Fallback: 첫 번째 메타데이터 값 또는 "Untitled"
+
+#### 4. 프론트엔드 빌드 에러 수정 ✅
+- **문제**: `Type 'boolean | ""' is not assignable to type 'boolean | undefined'`
+- **원인**: `hasScrapedData` 변수가 truthy 값을 반환 (빈 문자열 포함)
+- **해결**: 명시적 boolean 변환 `!!(scrapedKey && scrapedData[scrapedKey] !== undefined)`
+- **발생 파일**: `frontend/components/FieldMappingModal.tsx:244`
+
+#### 5. 공통 이슈 해결 패턴
+- **스크래퍼 안정성**: 웹사이트 구조 변경에 대비한 Fallback 로직 구현
+- **타입 안전성**: TypeScript strict mode에서 명시적 타입 변환 중요
+- **데이터 유연성**: 필수 필드를 Optional로 만들고 기본값/자동 추출 제공
+
+---
+
+## 📅 2025-10-07 (화) - UI/UX 개선 (테이블 및 카드 레이아웃)
+
+#### 1. 관리자 화면 테이블 레이아웃 개선 ✅
+- **문제**: 긴 텍스트가 테이블 레이아웃을 깨뜨림
+- **해결**:
+  - 컬럼명: `whitespace-nowrap`으로 항상 한 줄 유지
+  - 셀 내용: `max-w-md` (최대 너비 28rem)로 제한하되 여러 줄 표시 허용
+  - 짧은 텍스트는 유동적으로 작게 표시
+- **파일**: `frontend/app/admin/collections/[slug]/items/page.tsx`
+
+#### 2. Public 화면 카드 레이아웃 개선 ✅
+- **그리드 뷰 더보기 기능**:
+  - ItemCard 컴포넌트 신규 작성
+  - 100자 이상의 긴 텍스트에 "더보기" 버튼 자동 표시
+  - 기본 3줄까지만 표시 (`line-clamp-3`)
+  - 각 필드마다 독립적으로 펼침/접기 가능
+  - "접기 ▲" / "더보기 ▼" 버튼
+- **리스트 뷰 말줄임표**:
+  - 테이블 셀에 `max-w-xs` + `truncate` 적용
+  - hover 시 `title` 속성으로 전체 텍스트 표시
+- **파일**: `frontend/app/collections/[slug]/page.tsx`
+
+#### 3. 사용자 경험 개선
+- **가독성 향상**: 긴 설명이 레이아웃을 깨뜨리지 않음
+- **유연한 표시**: 짧은 텍스트는 공간을 적게 차지하고, 긴 텍스트는 펼쳐볼 수 있음
+- **일관된 디자인**: 관리자/Public 화면 모두 깔끔한 레이아웃 유지
 
 ---
 
@@ -431,41 +747,39 @@
 
 ## 다음 작업 예정
 
-### 우선순위 1: 아이템 관리 시스템 (다음 단계)
-1. **아이템 관리 페이지 구현**
-   - 🔲 `/admin/collections/[slug]/items` - 컬렉션별 아이템 CRUD
-   - 🔲 동적 폼 생성 (field_definitions 기반)
+### 우선순위 1: 아이템 관리 시스템 ✅ 완료!
+1. **아이템 관리 페이지 구현** ✅
+   - ✅ `/admin/collections/[slug]/items` - 컬렉션별 아이템 CRUD
+   - ✅ 동적 폼 생성 (field_definitions 기반)
      - text, textarea, number, date, select 타입 지원
      - 필수 필드 검증
      - placeholder 표시
-   - 🔲 아이템 목록 테이블 (정렬/필터링)
-   - 🔲 아이템 생성/수정/삭제 모달
+   - ✅ 아이템 목록 테이블 (정렬/필터링)
+   - ✅ 아이템 생성/수정/삭제 모달
    - 🔲 이미지 업로드 (선택사항)
 
-2. **Public 아이템 목록 페이지**
-   - 🔲 `/collections/[slug]` - 컬렉션별 아이템 조회
-   - 🔲 그리드/리스트 뷰 전환
-   - 🔲 정렬 기능 (이름순, 날짜순)
-   - 🔲 간단한 검색 기능
+2. **Public 아이템 목록 페이지** ✅
+   - ✅ `/collections/[slug]` - 컬렉션별 아이템 조회
+   - ✅ 그리드/리스트 뷰 전환
+   - ✅ 정렬 기능 (이름순, 날짜순)
+   - ✅ 간단한 검색 기능
 
 ### 우선순위 2: UX 개선
-1. **검색 및 필터링**
-   - 제목/저자/디자이너 검색
-   - 카테고리별 필터
+1. **상세 페이지**
+   - 🔲 개별 아이템 상세 정보
 
-2. **정렬 기능**
-   - 제목순, 날짜순, 가격순
-
-3. **상세 페이지**
-   - 개별 아이템 상세 정보
+2. **이미지 업로드**
+   - 🔲 S3 또는 로컬 스토리지 연동
+   - 🔲 이미지 필드 타입 추가
+   - 🔲 썸네일 표시
 
 ### 우선순위 3: pgVector 활용
 1. **벡터 검색 구현**
-   - 도서/게임 설명 임베딩
-   - 유사 아이템 추천
+   - 🔲 도서/게임 설명 임베딩
+   - 🔲 유사 아이템 추천
 
 2. **RAG 기반 검색**
-   - 자연어 질의 지원
+   - 🔲 자연어 질의 지원
 
 ## 기술 스택
 
@@ -581,3 +895,89 @@ async def create_collection(
 4. **JSON 필드 대신 개별 컬럼 사용**
    - 타입별로 필요한 필드가 명확히 다름
    - 데이터 무결성 및 쿼리 성능 향상
+
+---
+
+## 📅 2025-10-06 (월) - 아이템 관리 시스템 완성
+
+#### 1. 백엔드 API 프록시 구현
+- ✅ **Next.js API Routes 추가**
+  - `/api/items` (GET, POST)
+  - `/api/items/[collectionId]/[itemId]` (GET, PUT, DELETE)
+  - Docker 내부 네트워크 주소 사용
+  - 인증 토큰 전달
+
+#### 2. 프론트엔드 API 라이브러리 확장
+- ✅ **frontend/lib/api.ts**
+  - `getCollectionBySlug()`: slug로 컬렉션 조회
+  - `createItem()`: 아이템 생성
+  - `updateItem()`: 아이템 수정
+  - `deleteItem()`: 아이템 삭제
+  - 모든 함수에 인증 토큰 전달
+
+#### 3. ItemModal 컴포넌트 구현
+- ✅ **frontend/components/ItemModal.tsx**
+  - 동적 폼 생성 (field_definitions 기반)
+  - 타입별 입력 필드:
+    - `text`: 일반 텍스트 입력
+    - `textarea`: 여러 줄 텍스트 (min-height: 120px)
+    - `number`: 숫자 입력
+    - `date`: 날짜 선택기
+    - `select`: 드롭다운 (options 기반)
+  - 필수 필드 검증 (빨간색 별표 + 에러 메시지)
+  - placeholder 표시
+  - 생성/수정 모드 지원
+  - 저장 중 로딩 스피너
+
+#### 4. Admin 아이템 관리 페이지 구현
+- ✅ **frontend/app/admin/collections/[slug]/items/page.tsx**
+  - 컬렉션별 아이템 CRUD
+  - 기능:
+    - 아이템 생성/수정/삭제
+    - 실시간 검색 (모든 metadata 필드)
+    - 정렬 (생성일 + 모든 필드별 정렬)
+    - 오름차순/내림차순 전환
+  - UI:
+    - 테이블 레이아웃
+    - 컬럼 헤더 클릭으로 정렬
+    - Hover 효과 (amber-50)
+    - 편집/삭제 버튼
+  - 빈 상태 UI (아이템 없을 때)
+  - 검색 결과 없을 때 안내
+
+#### 5. Public 아이템 목록 페이지 구현
+- ✅ **frontend/app/collections/[slug]/page.tsx**
+  - 조회 전용 페이지
+  - 기능:
+    - 검색 (모든 metadata 필드)
+    - 정렬 (생성일 + 모든 필드별)
+    - 그리드 ↔ 리스트 뷰 전환
+  - UI:
+    - **그리드 뷰**: 카드 레이아웃 (3 columns)
+      - 각 필드를 세로로 표시
+      - hover 효과 (border-amber-400 + shadow)
+    - **리스트 뷰**: 테이블 레이아웃
+      - 모든 필드를 가로로 표시
+      - hover 효과 (amber-50)
+    - 뷰 모드 토글 버튼 (그리드/리스트 아이콘)
+  - Warehouse 테마 적용
+  - 헤더에 컬렉션 정보 표시
+
+#### 6. 컬렉션 관리 페이지 연결
+- ✅ **frontend/app/admin/collections/page.tsx**
+  - "아이템 관리" 버튼을 Link로 변경
+  - `/admin/collections/${slug}/items`로 이동
+
+#### 7. 사용자 경험 개선
+- ✅ **검색 및 정렬**
+  - useMemo로 성능 최적화
+  - 대소문자 무시 검색
+  - 모든 metadata 값 검색 지원
+- ✅ **로딩 상태 관리**
+  - 삭제 중 버튼 비활성화
+  - 저장 중 스피너 표시
+- ✅ **에러 처리**
+  - 컬렉션 조회 실패 시 관리자 페이지로 리다이렉트
+  - 필드 정의 없을 때 안내 메시지
+
+---

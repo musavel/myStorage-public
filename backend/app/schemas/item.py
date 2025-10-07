@@ -6,7 +6,7 @@ from datetime import datetime
 class ItemBase(BaseModel):
     """Item 기본 스키마"""
     collection_id: int
-    title: str
+    title: Optional[str] = None  # 메타데이터에서 자동 추출 가능
     metadata: Dict[str, Any] = Field(default_factory=dict)  # 동적 메타데이터
 
 

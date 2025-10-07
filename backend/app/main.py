@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from backend.app.api import collections_router, auth_router
 from backend.app.api.items import router as items_router
 from backend.app.api.ai import router as ai_router
+from backend.app.api.scraper import router as scraper_router
 from backend.app.db import Base, engine
 from backend.app.db.mongodb import connect_to_mongodb, close_mongodb_connection
 
@@ -41,6 +42,7 @@ app.include_router(auth_router, prefix="/api")
 app.include_router(collections_router, prefix="/api")
 app.include_router(items_router, prefix="/api")
 app.include_router(ai_router, prefix="/api")
+app.include_router(scraper_router)
 
 
 @app.get("/")

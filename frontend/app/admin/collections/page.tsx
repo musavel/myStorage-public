@@ -127,7 +127,7 @@ export default function CollectionsManagePage() {
               onClick={handleCreateNew}
               className="px-6 py-3 bg-gradient-to-r from-slate-700 to-slate-800 text-amber-100 rounded-lg font-semibold hover:from-slate-600 hover:to-slate-700 hover:shadow-[0_0_20px_rgba(251,191,36,0.2)] transition-all"
             >
-              + 컬렉션 추가
+              + 새 컬렉션
             </button>
           </div>
         ) : (
@@ -167,9 +167,12 @@ export default function CollectionsManagePage() {
                   >
                     편집
                   </button>
-                  <button className="flex-1 px-4 py-2 bg-gradient-to-r from-slate-700 to-slate-800 text-amber-100 rounded-lg text-sm font-medium hover:from-slate-600 hover:to-slate-700 transition-all">
+                  <Link
+                    href={`/admin/collections/${collection.slug}/items`}
+                    className="flex-1 px-4 py-2 bg-gradient-to-r from-slate-700 to-slate-800 text-amber-100 rounded-lg text-sm font-medium hover:from-slate-600 hover:to-slate-700 transition-all text-center"
+                  >
                     아이템 관리
-                  </button>
+                  </Link>
                 </div>
               </div>
             ))}

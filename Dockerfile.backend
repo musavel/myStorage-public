@@ -17,6 +17,10 @@ COPY pyproject.toml uv.lock ./
 # Install dependencies
 RUN uv sync --frozen
 
+# Install Playwright browsers and dependencies (must be after uv sync)
+RUN uv run playwright install chromium && \
+    uv run playwright install-deps
+
 # Copy application code
 COPY backend/ ./backend/
 
