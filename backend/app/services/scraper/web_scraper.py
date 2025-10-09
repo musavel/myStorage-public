@@ -179,17 +179,31 @@ class WebScraper:
             if author_elem:
                 metadata['author'] = (await author_elem.text_content()).strip()
 
-            # 출판사
-            publisher_elem = await page.query_selector('.publisher a')
-            if publisher_elem:
-                metadata['publisher'] = (await publisher_elem.text_content()).strip()
-
-            # 출판일
-            date_elem = await page.query_selector('.date')
-            if date_elem:
-                date_text = (await date_elem.text_content()).strip()
-                # "2021년 01월 15일" 형식에서 날짜 추출
-                metadata['publication_date'] = date_text
+            # 출판사와 출판일 (.prod_info_text.publish_date에서 함께 추출)
+            publish_info_elem = await page.query_selector('.prod_info_text.publish_date')
+            if publish_info_elem:
+                publish_text = (await publish_info_elem.text_content()).strip()
+                # "대원씨아이 · 2021년 10월 05일" 형식
+                parts = publish_text.split('·')
+                if len(parts) == 2:
+                    metadata['publisher'] = parts[0].strip()
+                    date_text = parts[1].strip()
+                    # "2021년 10월 05일" → "2021-10-05" 변환
+                    date_match = re.search(r'(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일', date_text)
+                    if date_match:
+                        year, month, day = date_match.groups()
+                        metadata['publication_date'] = f"{year}-{month.zfill(2)}-{day.zfill(2)}"
+                    else:
+                        metadata['publication_date'] = date_text
+                elif len(parts) == 1:
+                    # · 구분자가 없으면 전체를 출판일로 간주
+                    date_text = parts[0].strip()
+                    date_match = re.search(r'(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일', date_text)
+                    if date_match:
+                        year, month, day = date_match.groups()
+                        metadata['publication_date'] = f"{year}-{month.zfill(2)}-{day.zfill(2)}"
+                    else:
+                        metadata['publication_date'] = date_text
 
             # 가격
             price_elem = await page.query_selector('.sell_price .val')

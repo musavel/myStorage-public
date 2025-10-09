@@ -17,7 +17,7 @@ JavaScript 렌더링이 필요한 페이지도 처리 가능합니다.
 | `title` | string | 도서 제목 | "원피스 1: 동터오는 모험 시대" |
 | `author` | string | 저자명 | "Eiichiro Oda" |
 | `publisher` | string | 출판사 | "대원씨아이" |
-| `publication_date` | string | 출판일 | "2025.09.04" |
+| `publication_date` | string | 출판일 (YYYY-MM-DD) | "2021-10-05" |
 | `description` | string | 도서 설명 | "유쾌한 해적들의 신나는 모험 이야기..." |
 | `image` | string (URL) | 표지 이미지 URL | "https://contents.kyobobook.co.kr/..." |
 | `image_url` | string (URL) | 표지 이미지 URL (image와 동일) | (자동 추가) |
@@ -29,7 +29,11 @@ JavaScript 렌더링이 필요한 페이지도 처리 가능합니다.
 | `type` | string | Open Graph type | "website" |
 
 #### 구현 세부사항
-- CSS 셀렉터: `.prod_title`, `.author a`, `.publisher a`, `.date`, `.sell_price .val`
+- CSS 셀렉터:
+  - 제목: `.prod_title`
+  - 저자: `.author a`
+  - 출판사/출판일: `.prod_info_text.publish_date` (형식: "출판사 · YYYY년 MM월 DD일", 날짜는 YYYY-MM-DD로 변환)
+  - 가격: `.sell_price .val`
 - ISBN: 이미지 URL에서 우선 추출 (`/pdt/(\d{13})\.`), 실패 시 페이지에서 정규식 검색
 - 가격: 숫자만 추출 후 정수 변환
 - 설명: `.intro_bottom` 요소에서 추출
