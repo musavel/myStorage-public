@@ -23,7 +23,8 @@ JavaScript 렌더링이 필요한 페이지도 처리 가능합니다.
 | `image_url` | string (URL) | 표지 이미지 URL (image와 동일) | (자동 추가) |
 | `isbn` | string | ISBN (13자리 우선, 10자리 fallback) | "9791136287489" |
 | `price` | integer | 판매 가격 (원) | 4950 |
-| `pages` | integer | 쪽수 | 200 |
+| `page_count` | integer | 쪽수 | 207 |
+| `pages` | integer | 쪽수 (하위 호환성, page_count와 동일) | 207 |
 | `category` | string | 카테고리 (breadcrumb 두 번째 레벨) | "만화" |
 | `source_url` | string (URL) | 원본 페이지 URL | (자동 추가) |
 | `type` | string | Open Graph type | "website" |
@@ -36,8 +37,8 @@ JavaScript 렌더링이 필요한 페이지도 처리 가능합니다.
   - 가격: `.sell_price .val`
 - ISBN: 이미지 URL에서 우선 추출 (`/pdt/(\d{13})\.`), 실패 시 페이지에서 정규식 검색
 - 가격: 숫자만 추출 후 정수 변환
-- 설명: `.intro_bottom` 요소에서 추출
-- 쪽수: 페이지 전체에서 정규식 `(\d+)\s*쪽` 검색
+- 설명: `.intro_bottom` 요소에서 추출, 개행문자와 연속 공백을 단일 공백으로 정제
+- 쪽수: 페이지 전체에서 정규식 `(\d+)\s*쪽` 검색, `page_count`와 `pages` 모두 설정
 - 카테고리: `.breadcrumb_item[data-id]`에서 두 번째 레벨 추출
 
 ---
@@ -59,7 +60,8 @@ JavaScript 렌더링이 필요한 페이지도 처리 가능합니다.
 | `image_url` | string (URL) | 표지 이미지 URL (image와 동일) | (자동 추가) |
 | `isbn` | string | ISBN (13자리 우선, 10자리 fallback) | "9791136287489" |
 | `price` | integer | 판매 가격 (원, 할인가 기준) | 4950 |
-| `pages` | integer | 쪽수 | 200 |
+| `page_count` | integer | 쪽수 | 208 |
+| `pages` | integer | 쪽수 (하위 호환성, page_count와 동일) | 208 |
 | `source_url` | string (URL) | 원본 페이지 URL | (자동 추가) |
 | `type` | string | Open Graph type | "books.book" |
 | `date_published` | string | JSON-LD에서 추출 (있는 경우) | null |
@@ -69,8 +71,8 @@ JavaScript 렌더링이 필요한 페이지도 처리 가능합니다.
 - 복수 저자: 여러 `<a>` 태그에서 추출 후 쉼표로 연결, HTML 엔티티 디코딩 (`html.unescape()`)
 - 출판일: 정규식 `(\d{4}-\d{2}-\d{2})` 사용
 - ISBN: 페이지 전체에서 정규식 검색
-- 설명: 여러 셀렉터 시도 (`#divContentTab1`, `.Ere_prod_mconts_T`, `.book_summary_wrap`)
-- 쪽수: 페이지 전체에서 정규식 `(\d+)\s*쪽` 검색
+- 설명: 여러 셀렉터 시도 (`#divContentTab1`, `.Ere_prod_mconts_T`, `.book_summary_wrap`), 개행문자와 연속 공백을 단일 공백으로 정제
+- 쪽수: 페이지 전체에서 정규식 `(\d+)\s*쪽` 검색, `page_count`와 `pages` 모두 설정
 - 카테고리: 구조가 복잡하여 미지원
 
 ---

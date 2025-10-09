@@ -234,19 +234,24 @@ class WebScraper:
                     if isbn_match:
                         metadata['isbn'] = isbn_match.group(1)
 
-            # 책 설명
+            # 책 설명 (개행문자와 연속 공백 제거)
             desc_elem = await page.query_selector('.intro_bottom')
             if desc_elem:
-                metadata['description'] = (await desc_elem.text_content()).strip()
+                desc_text = (await desc_elem.text_content()).strip()
+                # 개행문자와 연속 공백을 단일 공백으로 변환
+                desc_text = re.sub(r'\s+', ' ', desc_text)
+                metadata['description'] = desc_text
 
             # 페이지수 추출 (전체 페이지에서 "n쪽" 패턴 찾기)
             page_content = await page.content()
             pages_match = re.search(r'(\d+)\s*쪽', page_content)
             if pages_match:
                 try:
-                    metadata['pages'] = int(pages_match.group(1))
+                    page_count = int(pages_match.group(1))
+                    metadata['page_count'] = page_count
+                    metadata['pages'] = page_count  # 하위 호환성
                 except (ValueError, AttributeError):
-                    metadata['pages'] = None
+                    pass
 
             # 카테고리 추출 (breadcrumb에서 두 번째 레벨 - 국내도서 > 만화/소설 등)
             breadcrumb_list = await page.query_selector('.breadcrumb_list')
@@ -325,7 +330,7 @@ class WebScraper:
             if isbn_match:
                 metadata['isbn'] = isbn_match.group(1)
 
-            # 책 설명 (여러 요소 시도)
+            # 책 설명 (여러 요소 시도, 개행문자와 연속 공백 제거)
             desc_selectors = [
                 '#divContentTab1',  # 책 소개
                 '.Ere_prod_mconts_T',
@@ -336,6 +341,8 @@ class WebScraper:
                 if desc_elem:
                     desc_text = (await desc_elem.text_content()).strip()
                     if desc_text and len(desc_text) > 20:
+                        # 개행문자와 연속 공백을 단일 공백으로 변환
+                        desc_text = re.sub(r'\s+', ' ', desc_text)
                         metadata['description'] = desc_text
                         break
 
@@ -344,9 +351,11 @@ class WebScraper:
             pages_match = re.search(r'(\d+)\s*쪽', page_content)
             if pages_match:
                 try:
-                    metadata['pages'] = int(pages_match.group(1))
+                    page_count = int(pages_match.group(1))
+                    metadata['page_count'] = page_count
+                    metadata['pages'] = page_count  # 하위 호환성
                 except (ValueError, AttributeError):
-                    metadata['pages'] = None
+                    pass
 
             # 카테고리 추출 - 알라딘은 구조가 복잡하여 생략
             # TODO: 알라딘 카테고리 추출 로직 개선 필요
