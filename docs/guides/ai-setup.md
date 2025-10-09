@@ -170,7 +170,64 @@ GET /api/ai/providers
 
 ---
 
-## 4. 프론트엔드 통합
+## 4. AI 모델 설정 (관리자 페이지)
+
+### 설정 방법
+1. `/admin` 페이지 접속
+2. "🤖 AI 모델 설정" 카드 클릭
+3. 텍스트 모델 및 비전 모델 선택
+4. "저장" 버튼 클릭
+
+### 설정 저장 위치
+- **PostgreSQL `user_settings` 테이블**: 영구 저장
+- **여러 브라우저/기기에서 동일한 설정 사용**
+- localStorage에 저장하지 않음 (DB가 단일 소스)
+
+### API 엔드포인트
+
+#### 현재 설정 조회
+```bash
+GET /api/ai/get-models
+```
+
+응답:
+```json
+{
+  "success": true,
+  "settings": {
+    "text_model": {
+      "provider": "openai",
+      "model_id": "gpt-4o-mini"
+    },
+    "vision_model": {
+      "provider": "gemini",
+      "model_id": "gemini-2.5-flash"
+    }
+  }
+}
+```
+
+#### 설정 저장
+```bash
+POST /api/ai/set-models
+Authorization: Bearer {JWT_TOKEN}
+Content-Type: application/json
+
+{
+  "textModel": {
+    "provider": "openai",
+    "modelId": "gpt-4o-mini"
+  },
+  "visionModel": {
+    "provider": "gemini",
+    "modelId": "gemini-2.5-flash"
+  }
+}
+```
+
+---
+
+## 5. 프론트엔드 통합
 
 ```typescript
 // AI 필드 추천 호출

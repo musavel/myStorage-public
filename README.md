@@ -53,9 +53,10 @@
   - OpenAI GPT-4o Mini, GPT-4o, GPT-4.1, GPT-5 시리즈 지원
   - Google Gemini 2.5 Flash, Pro, Lite 지원
   - 컬렉션 이름 기반 메타데이터 자동 생성
-- ✅ **AI 모델 관리** (`/api/ai/models`, `/api/ai/set-models`) - Owner only
+- ✅ **AI 모델 관리** (`/api/ai/models`, `/api/ai/set-models`, `/api/ai/get-models`) - Owner only
   - JSON 기반 모델 데이터베이스
-  - 설정된 모델 자동 사용
+  - **DB에 설정 영구 저장** (PostgreSQL user_settings 테이블)
+  - 여러 브라우저/기기에서 동일한 설정 사용
   - 비용 계산 기능
 - ✅ **DeepL 번역 API** (`/api/ai/translate-slug`) - Owner only
   - 한글/다국어 → 영문 slug 자동 생성
@@ -73,6 +74,7 @@
 ### 데이터베이스 (하이브리드 아키텍처)
 - ✅ **PostgreSQL** (메타데이터)
   - Collection: 컬렉션 정의 + `mongo_collection` 매핑 + `field_definitions` (JSONB) + `field_mapping` (JSONB)
+  - UserSettings: 소유자별 AI 모델 설정 영구 저장
 - ✅ **MongoDB** (실제 데이터)
   - 동적 컬렉션: items_* (예: items_books, items_games)
   - collection_id로 PostgreSQL과 연결
@@ -97,7 +99,7 @@
   - Google OAuth 로그인/로그아웃
   - 컬렉션 관리: 생성/수정/삭제 + AI 필드 추천
   - 아이템 관리: 생성/수정/삭제 + URL 스크래핑 + CSV 일괄 등록
-  - AI 모델 설정 (텍스트/비전 모델 선택)
+  - AI 모델 설정 (텍스트/비전 모델 선택, DB에 영구 저장)
 - ✅ **인증 시스템**
   - AuthContext: JWT 토큰 관리 (localStorage)
   - 인증 상태 전역 관리
@@ -252,7 +254,8 @@ myStorage/
 │       │   ├── base.py               # PostgreSQL
 │       │   └── mongodb.py            # MongoDB 연결
 │       ├── models/                   # SQLAlchemy 모델
-│       │   └── collection.py
+│       │   ├── collection.py
+│       │   └── user_settings.py      # AI 설정 저장
 │       ├── schemas/                  # Pydantic 스키마
 │       │   ├── collection.py
 │       │   ├── item.py
@@ -271,7 +274,7 @@ myStorage/
 │   │   ├── BulkImportModal.tsx       # CSV 일괄 등록 모달
 │   │   └── FieldMappingModal.tsx     # 필드 매핑 UI
 │   ├── hooks/                        # 커스텀 훅
-│   │   └── useAISettings.ts          # AI 설정 관리 훅
+│   │   └── useAISettings.ts          # AI 설정 관리 훅 (DB 연동)
 │   ├── types/                        # TypeScript 타입
 │   │   └── ai-models.ts              # AI 모델 타입 정의
 │   ├── app/
@@ -538,47 +541,27 @@ bash scripts/reset_database.sh
 2. 해당 이메일로 Google 로그인
 ```
 
-## 최근 업데이트 (2025-10-09)
-
-### 필드 매핑 시스템 고도화 ✅
-- **매핑 확인 UI**: Bulk scrape 시 저장된 매핑을 자동으로 확인하고 선택할 수 있음
-- **필드 불일치 경고**: 컬렉션 필드 정의와 매핑이 맞지 않으면 자동 경고
-- **매핑 삭제 API**: 저장된 매핑을 삭제하고 재설정 가능
-- **Bulk scrape 매핑 적용**: CSV 일괄 등록 시에도 저장된 매핑 자동 적용
-
-### Public 페이지 이미지 표시 개선 ✅
-- **image_url 필드 지원**: 스크래핑된 이미지가 자동으로 표시됨
-- **원본 비율 유지**: 이미지가 잘리지 않고 원본 비율로 표시
-- **중복 정보 제거**: 상세보기에서 image_url 필드 자동 숨김
-
-### 사용자 경험 개선 ✅
-- **직관적인 매핑 워크플로우**: 저장된 매핑 확인 → 사용/사용 안 함 선택
-- **유연한 작업 흐름**: 매핑을 사용하지 않아도 저장된 설정 유지
-- **자동화**: 한 번 설정한 매핑은 다음 스크래핑에 자동 적용
-
-## 다음 개발 계획
-
-### 우선순위 1: 추가 기능
-- 이미지 업로드 및 관리 시스템
-- 고급 검색 및 필터링
-- pgVector 활용 (유사 아이템 추천)
-
-### 우선순위 2: 성능 최적화
-- 대량 데이터 처리 개선
-- 캐싱 전략 구현
-
-자세한 개발 진행 상황은 [docs/DEVELOPMENT.md](./docs/DEVELOPMENT.md)를 참고하세요.
-
 ## 📚 문서
 
-### 사용자 가이드
-- **[AI 기능 설정](./docs/AI_SETUP.md)** - OpenAI/Gemini API 키 발급 및 AI 모델 선택
-- **[컬렉션 예시](./docs/COLLECTION_EXAMPLES.md)** - 도서, 보드게임, 영화 등 필드 정의 예시
-- **[스크래핑 필드](./docs/SCRAPER_FIELDS.md)** - 교보문고/알라딘 스크래핑 가능 필드 및 매핑 가이드
+### 시작하기
+- **[문서 인덱스](./docs/README.md)** - 전체 문서 모음
+- **[시스템 아키텍처](./docs/ARCHITECTURE.md)** - 하이브리드 DB, Service Layer 등
+- **[개발 가이드](./docs/DEVELOPMENT.md)** - 로컬 개발 환경 설정 및 코딩 컨벤션
 
-### 개발자 가이드
-- **[개발 진행 상황](./docs/DEVELOPMENT.md)** - 상세한 개발 히스토리 및 기술 결정 사항
-- **[인증 및 보안](./docs/AUTHENTICATION.md)** - Google OAuth 2.0 및 JWT 인증 시스템
+### 기능별 문서
+- **[컬렉션 시스템](./docs/features/collections.md)** - 동적 필드 정의, Title 시스템
+- **[AI 모델 시스템](./docs/features/ai-models.md)** - 필드 추천, DeepL 번역, DB 설정 관리
+- **[웹 스크래핑](./docs/features/web-scraping.md)** - Playwright, 사이트별 파싱
+- **[필드 매핑](./docs/features/field-mapping.md)** - 자동 매칭, 매핑 저장
+
+### 사용자 가이드
+- **[AI 기능 설정](./docs/guides/ai-setup.md)** - OpenAI/Gemini API 키 발급 및 설정
+- **[인증 및 보안](./docs/guides/authentication.md)** - Google OAuth 2.0 설정
+- **[컬렉션 예시](./docs/guides/collection-examples.md)** - 도서, 보드게임, 영화 등
+- **[스크래핑 필드](./docs/guides/scraper-fields.md)** - 교보문고/알라딘 필드 매핑
+
+### 변경 이력
+- **[Changelog](./docs/changelog/README.md)** - 일별 개발 진행 상황
 
 ## 라이선스
 
