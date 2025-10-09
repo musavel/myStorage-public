@@ -2,8 +2,10 @@
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from typing import List, Optional, Literal
+from sqlalchemy.orm import Session
 
 from backend.app.core.auth import require_owner
+from backend.app.db import get_db
 from backend.app.schemas import FieldSuggestion
 from backend.app.services.ai import (
     suggest_fields,
@@ -53,10 +55,12 @@ class AISettingsRequest(BaseModel):
 @router.post("/suggest-fields", response_model=FieldSuggestionResponse)
 async def suggest_fields_endpoint(
     request: SuggestFieldsRequest,
-    email: str = Depends(require_owner)
+    email: str = Depends(require_owner),
+    db: Session = Depends(get_db)
 ):
     """AI 기반 컬렉션 필드 추천 (Owner only)"""
     fields, provider = await suggest_fields(
+        db,
         collection_name=request.collection_name,
         description=request.description,
         provider=request.provider,
@@ -97,7 +101,8 @@ async def get_providers_endpoint():
 @router.post("/set-models")
 async def set_models_endpoint(
     settings_req: AISettingsRequest,
-    email: str = Depends(require_owner)
+    email: str = Depends(require_owner),
+    db: Session = Depends(get_db)
 ):
     """AI 모델 설정 저장 (Owner only)"""
     text_model = None
@@ -115,19 +120,19 @@ async def set_models_endpoint(
             "model_id": settings_req.visionModel.modelId
         }
 
-    update_settings(text_model=text_model, vision_model=vision_model)
+    update_settings(db, text_model=text_model, vision_model=vision_model)
 
     return {
         "success": True,
         "message": "AI 모델 설정이 저장되었습니다.",
-        "settings": get_current_settings()
+        "settings": get_current_settings(db)
     }
 
 
 @router.get("/get-models")
-async def get_current_models_endpoint():
+async def get_current_models_endpoint(db: Session = Depends(get_db)):
     """현재 설정된 AI 모델 정보 반환"""
     return {
         "success": True,
-        "settings": get_current_settings()
+        "settings": get_current_settings(db)
     }

@@ -8,7 +8,6 @@ import {
 } from '@/types/ai-models';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-const STORAGE_KEY = 'ai_settings';
 
 export function useAISettings() {
   const [settings, setSettings] = useState<AISettings>({
@@ -18,28 +17,6 @@ export function useAISettings() {
   const [availableModels, setAvailableModels] = useState<ModelsByProvider>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // localStorage에서 설정 로드
-  const loadFromLocalStorage = useCallback(() => {
-    if (typeof window === 'undefined') return null;
-
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try {
-        return JSON.parse(stored) as AISettings;
-      } catch (e) {
-        console.error('Failed to parse stored AI settings:', e);
-        return null;
-      }
-    }
-    return null;
-  }, []);
-
-  // localStorage에 설정 저장
-  const saveToLocalStorage = useCallback((newSettings: AISettings) => {
-    if (typeof window === 'undefined') return;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(newSettings));
-  }, []);
 
   // 백엔드에서 사용 가능한 모델 목록 가져오기
   const fetchAvailableModels = useCallback(async () => {
@@ -55,7 +32,7 @@ export function useAISettings() {
     }
   }, []);
 
-  // 백엔드에서 현재 설정 가져오기
+  // 백엔드에서 현재 설정 가져오기 (DB에서)
   const fetchCurrentSettings = useCallback(async () => {
     try {
       const response = await fetch(`${API_URL}/api/ai/get-models`);
@@ -80,19 +57,14 @@ export function useAISettings() {
         };
 
         setSettings(newSettings);
-        saveToLocalStorage(newSettings);
       }
     } catch (err) {
       console.error('Error fetching current settings:', err);
-      // 백엔드 실패 시 localStorage에서 로드
-      const stored = loadFromLocalStorage();
-      if (stored) {
-        setSettings(stored);
-      }
+      setError(err instanceof Error ? err.message : 'Failed to fetch settings');
     }
-  }, [loadFromLocalStorage, saveToLocalStorage]);
+  }, []);
 
-  // 설정 저장 (localStorage + 백엔드)
+  // 설정 저장 (DB에)
   const saveSettings = useCallback(
     async (newSettings: AISettings): Promise<boolean> => {
       try {
@@ -118,7 +90,6 @@ export function useAISettings() {
         const data = await response.json();
         if (data.success) {
           setSettings(newSettings);
-          saveToLocalStorage(newSettings);
           return true;
         }
         return false;
@@ -128,7 +99,7 @@ export function useAISettings() {
         return false;
       }
     },
-    [saveToLocalStorage]
+    []
   );
 
   // 초기 로드
@@ -136,20 +107,14 @@ export function useAISettings() {
     const init = async () => {
       setIsLoading(true);
 
-      // localStorage에서 먼저 로드 (빠른 표시)
-      const stored = loadFromLocalStorage();
-      if (stored) {
-        setSettings(stored);
-      }
-
-      // 백엔드에서 모델 목록과 설정 가져오기
+      // DB에서 모델 목록과 설정 가져오기
       await Promise.all([fetchAvailableModels(), fetchCurrentSettings()]);
 
       setIsLoading(false);
     };
 
     init();
-  }, [loadFromLocalStorage, fetchAvailableModels, fetchCurrentSettings]);
+  }, [fetchAvailableModels, fetchCurrentSettings]);
 
   const isConfigured = settings.textModel !== null || settings.visionModel !== null;
 

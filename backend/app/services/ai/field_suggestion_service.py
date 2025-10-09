@@ -3,6 +3,7 @@ import json
 import logging
 from typing import Optional, Literal
 from fastapi import HTTPException
+from sqlalchemy.orm import Session
 
 from langchain_openai import ChatOpenAI
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -83,6 +84,7 @@ def create_llm(provider: str, model_id: str = None):
 
 
 async def suggest_fields(
+    db: Session,
     collection_name: str,
     description: Optional[str] = None,
     provider: Optional[Literal["openai", "gemini"]] = None,
@@ -96,7 +98,7 @@ async def suggest_fields(
     try:
         # provider와 model_id 결정
         if not provider:
-            text_model = get_text_model()
+            text_model = get_text_model(db)
             if text_model:
                 provider = text_model["provider"]
                 model_id = text_model["model_id"]
