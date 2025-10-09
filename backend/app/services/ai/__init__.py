@@ -1,5 +1,6 @@
 """AI 관련 서비스"""
-from .field_suggestion_service import suggest_fields, translate_slug
+from .field_suggestion_service import suggest_fields
+from .translation_service import translate_slug
 from .model_manager_service import (
     get_available_models,
     get_available_providers,

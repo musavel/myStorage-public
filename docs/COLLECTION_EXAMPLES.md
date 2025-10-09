@@ -26,21 +26,48 @@
       "label": "저자",
       "type": "text",
       "required": false,
-      "placeholder": "예: 로버트 C. 마틴"
+      "placeholder": "예: 오다 에이치로"
     },
     {
       "key": "publisher",
       "label": "출판사",
       "type": "text",
       "required": false,
-      "placeholder": "예: 인사이트"
+      "placeholder": "예: 대원씨아이"
     },
     {
       "key": "isbn",
       "label": "ISBN",
       "type": "text",
       "required": false,
-      "placeholder": "예: 9788966260959"
+      "placeholder": "예: 9791136287489"
+    },
+    {
+      "key": "publication_date",
+      "label": "출판일",
+      "type": "date",
+      "required": false
+    },
+    {
+      "key": "pages",
+      "label": "쪽수",
+      "type": "number",
+      "required": false,
+      "placeholder": "예: 200"
+    },
+    {
+      "key": "category",
+      "label": "카테고리",
+      "type": "select",
+      "required": false,
+      "options": ["만화", "소설", "기술서", "에세이", "자기계발", "역사", "과학", "기타"]
+    },
+    {
+      "key": "price",
+      "label": "가격",
+      "type": "number",
+      "required": false,
+      "placeholder": "원 단위"
     },
     {
       "key": "description",
@@ -51,30 +78,10 @@
     },
     {
       "key": "image_url",
-      "label": "표지 이미지 URL",
+      "label": "표지 이미지",
       "type": "text",
       "required": false,
       "placeholder": "https://..."
-    },
-    {
-      "key": "published_date",
-      "label": "출판일",
-      "type": "date",
-      "required": false
-    },
-    {
-      "key": "page_count",
-      "label": "페이지 수",
-      "type": "number",
-      "required": false,
-      "placeholder": "예: 464"
-    },
-    {
-      "key": "category",
-      "label": "카테고리",
-      "type": "select",
-      "required": false,
-      "options": ["소설", "기술서", "에세이", "자기계발", "역사", "과학", "기타"]
     },
     {
       "key": "purchase_date",
@@ -97,6 +104,13 @@
       "placeholder": "예: 서재 2번 책장"
     },
     {
+      "key": "source_url",
+      "label": "구매 링크",
+      "type": "text",
+      "required": false,
+      "placeholder": "교보문고/알라딘 링크"
+    },
+    {
       "key": "notes",
       "label": "메모",
       "type": "textarea",
@@ -106,6 +120,11 @@
   ]
 }
 ```
+
+**💡 스크래핑 활용 팁:**
+- 교보문고/알라딘에서 URL 스크래핑 시 `author`, `publisher`, `isbn`, `publication_date`, `pages`, `category`, `price`, `description`, `image_url` 필드가 자동으로 채워집니다.
+- 위 필드 정의를 사용하면 스크래핑 데이터와 1:1 매핑되어 편리합니다.
+- 자세한 내용은 [SCRAPER_FIELDS.md](./SCRAPER_FIELDS.md)를 참고하세요.
 
 ---
 

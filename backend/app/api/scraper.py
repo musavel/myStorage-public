@@ -77,6 +77,28 @@ async def get_field_mapping(
     return {"mapping": collection.field_mapping or {}}
 
 
+@router.delete("/delete-mapping/{collection_id}")
+async def delete_field_mapping(
+    collection_id: int,
+    db: Session = Depends(get_db),
+    email: str = Depends(require_owner),
+):
+    """
+    컬렉션의 저장된 필드 매핑 삭제
+    """
+    stmt = select(Collection).where(Collection.id == collection_id)
+    result = db.execute(stmt)
+    collection = result.scalar_one_or_none()
+
+    if not collection:
+        raise HTTPException(status_code=404, detail="컬렉션을 찾을 수 없습니다.")
+
+    collection.field_mapping = None
+    db.commit()
+
+    return {"success": True, "message": "필드 매핑이 삭제되었습니다."}
+
+
 @router.post("/scrape-url", response_model=ScrapeUrlResponse)
 async def scrape_single_url(
     request: ScrapeUrlRequest,
@@ -164,6 +186,20 @@ async def bulk_scrape_urls(
     urls = [str(url) for url in request.urls]
     results = await scrape_urls(urls)
 
+    # 매핑 설정 가져오기
+    mapping = None
+    ignore_unmapped = False
+    if request.apply_mapping:
+        stmt = select(Collection).where(Collection.id == request.collection_id)
+        result = db.execute(stmt)
+        collection = result.scalar_one_or_none()
+
+        if collection and collection.field_mapping:
+            mapping_config = collection.field_mapping
+            if isinstance(mapping_config, dict):
+                mapping = mapping_config.get("mapping", {})
+                ignore_unmapped = mapping_config.get("ignore_unmapped", False)
+
     success_count = 0
     failed_count = 0
     items = []
@@ -176,11 +212,16 @@ async def bulk_scrape_urls(
             continue
 
         try:
+            # 매핑 적용
+            metadata = result
+            if mapping:
+                metadata = apply_field_mapping(result, mapping, ignore_unmapped)
+
             # 아이템 생성
             item = await create_item_service(
                 db=db,
                 collection_id=request.collection_id,
-                metadata=result,
+                metadata=metadata,
             )
             success_count += 1
             items.append({
@@ -204,6 +245,7 @@ async def bulk_scrape_urls(
 async def bulk_scrape_from_csv(
     file: UploadFile = File(...),
     collection_id: int = Form(...),
+    apply_mapping: bool = Form(False),
     db: Session = Depends(get_db),
     email: str = Depends(require_owner),
 ):
@@ -234,6 +276,20 @@ async def bulk_scrape_from_csv(
         # 일괄 스크래핑
         results = await scrape_urls(urls)
 
+        # 매핑 설정 가져오기
+        mapping = None
+        ignore_unmapped = False
+        if apply_mapping:
+            stmt = select(Collection).where(Collection.id == collection_id)
+            result = db.execute(stmt)
+            collection = result.scalar_one_or_none()
+
+            if collection and collection.field_mapping:
+                mapping_config = collection.field_mapping
+                if isinstance(mapping_config, dict):
+                    mapping = mapping_config.get("mapping", {})
+                    ignore_unmapped = mapping_config.get("ignore_unmapped", False)
+
         success_count = 0
         failed_count = 0
         items = []
@@ -246,11 +302,16 @@ async def bulk_scrape_from_csv(
                 continue
 
             try:
+                # 매핑 적용
+                metadata = result
+                if mapping:
+                    metadata = apply_field_mapping(result, mapping, ignore_unmapped)
+
                 # 아이템 생성
                 item = await create_item_service(
                     db=db,
                     collection_id=collection_id,
-                    metadata=result,
+                    metadata=metadata,
                 )
                 success_count += 1
                 items.append({

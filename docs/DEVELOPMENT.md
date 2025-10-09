@@ -284,7 +284,7 @@
 - ✅ **AI 추천 통합 개선**
   - "수정" 버튼 클릭 시 AI 재호출 하지 않음
   - AI 추천 결과를 표에 자동 반영
-  - 빈 필드 상태에서도 직접 추가/AI 추천 선택 가능
+  - 빈 필드 상태에서도 필드 추가/AI 추천 선택 가능
 
 #### 5. 이모지 피커 추가
 - ✅ **50개 이모지 프리셋**
@@ -606,32 +606,47 @@
 
 ---
 
-## 📅 2025-10-07 (화) - UI/UX 개선 (테이블 및 카드 레이아웃)
+## 📅 2025-10-07 (화) - UI/UX 개선 & Title 필수 필드화
 
 #### 1. 관리자 화면 테이블 레이아웃 개선 ✅
 - **문제**: 긴 텍스트가 테이블 레이아웃을 깨뜨림
 - **해결**:
   - 컬럼명: `whitespace-nowrap`으로 항상 한 줄 유지
-  - 셀 내용: `max-w-md` (최대 너비 28rem)로 제한하되 여러 줄 표시 허용
-  - 짧은 텍스트는 유동적으로 작게 표시
+  - 각 필드의 최대 글자 수를 계산하여 동적 너비 조정
+  - 10자 이하: 150px, 10~50자: 300~450px, 50~100자: 450~750px, 100자 이상: 750~9000px
+  - `table-auto`로 내용에 따라 자동 조정
 - **파일**: `frontend/app/admin/collections/[slug]/items/page.tsx`
 
-#### 2. Public 화면 카드 레이아웃 개선 ✅
-- **그리드 뷰 더보기 기능**:
-  - ItemCard 컴포넌트 신규 작성
-  - 100자 이상의 긴 텍스트에 "더보기" 버튼 자동 표시
-  - 기본 3줄까지만 표시 (`line-clamp-3`)
-  - 각 필드마다 독립적으로 펼침/접기 가능
-  - "접기 ▲" / "더보기 ▼" 버튼
-- **리스트 뷰 말줄임표**:
-  - 테이블 셀에 `max-w-xs` + `truncate` 적용
-  - hover 시 `title` 속성으로 전체 텍스트 표시
+#### 2. Public 화면 완전 개편 ✅
+- **기존 문제**: 모든 필드가 노출되어 복잡하고 긴 텍스트가 레이아웃 깨뜨림
+- **새로운 방식**:
+  - **그리드 뷰**: Title만 표시하는 깔끔한 카드 + "상세보기" 버튼
+  - **리스트 뷰**: 제목, 등록일, 상세보기 버튼만 표시
+  - **상세 모달**: 모든 필드 정보를 모달로 표시
+    - ESC 키 및 외부 클릭으로 닫기 가능
+    - 모든 필드를 깔끔하게 나열
+    - 값이 없는 필드는 자동으로 숨김
 - **파일**: `frontend/app/collections/[slug]/page.tsx`
 
-#### 3. 사용자 경험 개선
-- **가독성 향상**: 긴 설명이 레이아웃을 깨뜨리지 않음
-- **유연한 표시**: 짧은 텍스트는 공간을 적게 차지하고, 긴 텍스트는 펼쳐볼 수 있음
-- **일관된 디자인**: 관리자/Public 화면 모두 깔끔한 레이아웃 유지
+#### 3. Title 필드 필수화 ✅
+- **FieldDefinitionEditor 개선**:
+  - title 필드 자동 추가 (없으면 맨 앞에 생성)
+  - title 필드는 파란색 배경으로 시각적 구분
+  - 🔒 필수 표시
+  - key, type, required 수정 불가
+  - 삭제 불가 (삭제 버튼 비활성화)
+  - 체크박스 선택 불가
+- **AI 추천 프롬프트 수정**:
+  - "title 필드는 절대 추천하지 마세요" 규칙 추가
+  - title은 시스템에서 자동 관리되는 필수 필드로 명시
+- **파일**:
+  - `frontend/components/FieldDefinitionEditor.tsx`
+  - `backend/app/services/ai/field_suggestion_service.py`
+
+#### 4. Title 자동 추출 로직
+- metadata에서 `title`, `제목`, `name`, `이름` 순으로 검색
+- 없으면 `item.title` 또는 "Untitled" 표시
+- Public 페이지 그리드/리스트 뷰 모두 적용
 
 ---
 
@@ -979,5 +994,235 @@ async def create_collection(
 - ✅ **에러 처리**
   - 컬렉션 조회 실패 시 관리자 페이지로 리다이렉트
   - 필드 정의 없을 때 안내 메시지
+
+---
+
+## 📅 2025-10-09 (목) - 스크래핑 개선 & DeepL 번역 시스템
+
+#### 1. 웹 스크래핑 필드 확장 ✅
+- **페이지수(쪽수) 추출 기능 추가**
+  - 교보문고: "n쪽" 패턴에서 숫자 추출
+  - 알라딘: "n쪽" 패턴에서 숫자 추출
+  - 정규식: `r'(\d+)\s*쪽'`
+  - 없으면 null 처리
+
+- **카테고리 추출 기능 추가**
+  - 교보문고: breadcrumb의 두 번째 레벨 (예: "국내도서 > 만화")
+  - 알라딘: 구조가 복잡하여 지원하지 않음
+  - CSS 셀렉터: `.breadcrumb_item[data-id]`
+
+- **SCRAPER_FIELDS.md 업데이트**
+  - 교보문고/알라딘에서 추출 가능한 필드 문서화
+  - 페이지수, 카테고리 정보 추가
+
+#### 2. DeepL 번역 시스템 구현 ✅
+- **기존 문제점**:
+  - Slug 번역을 AI 모델(GPT/Gemini)로 처리
+  - AI 모델 설정이 필요하여 진입 장벽 높음
+  - 컬렉션 생성 시 AI 미설정 에러 발생
+
+- **DeepL API 도입**:
+  - **공식 Python 라이브러리 사용** (`deepl==1.23.0`)
+  - 월 500,000 문자 무료 (Free tier)
+  - 번역 품질 우수
+  - AI 모델 설정 불필요
+
+- **Translation Service 분리** (`backend/app/services/ai/translation_service.py`):
+  - `translate_slug(text: str)` 함수
+  - DeepL API로 한글 → 영문 번역
+  - slug 형식 자동 변환 (소문자, 하이픈, 특수문자 제거)
+  - Fallback: MD5 해시 사용
+
+- **환경 변수 설정**:
+  - `DEEPL_API_KEY` 추가
+  - `.env`, `.env.example` 업데이트
+  - `docker-compose.yml`에 환경변수 전달
+
+- **API 파라미터 통일**:
+  - `TranslateSlugRequest`: `name` → `text`로 변경
+  - 더 범용적인 이름 (컬렉션 이름뿐만 아니라 다양한 텍스트 번역 가능)
+
+#### 3. AI 기능 UX 개선 ✅
+- **AI 모델 미설정 시 처리**:
+  - **FieldDefinitionEditor**: AI 추천 버튼 비활성화
+  - **CollectionModal**: Slug 번역 버튼은 DeepL로 동작 (AI 설정 불필요)
+  - 툴팁 추가: "AI 모델을 먼저 설정해주세요"
+
+- **AIFieldSuggestion 개선**:
+  - `useEffect` dependency를 `[settings.textModel]`로 변경
+  - AI 설정 로드 후 자동 실행
+  - AI 모델 없으면 명확한 에러 메시지
+  - 컬렉션 생성은 AI 없이도 가능하다는 안내 추가
+
+- **버튼 상태 관리**:
+  - AI 모델 설정 여부에 따라 버튼 활성화/비활성화
+  - 버튼 활성화 상태에서만 기능 동작 보장
+
+#### 4. ItemModal URL 입력 개선 ✅
+- **정보 표시 추가**:
+  - 추출 가능한 필드 안내 문구 추가
+  - "교보문고(카테고리, 쪽수), 알라딘(카테고리 미지원)" 표시
+
+#### 5. 서비스 아키텍처 개선 ✅
+- **Translation Service 분리**:
+  - 기존: `field_suggestion_service.py`에 `translate_slug` 함수
+  - 신규: `translation_service.py`로 분리
+  - 목적별 서비스 파일 구조 명확화:
+    - `field_suggestion_service.py`: AI 필드 추천 (OpenAI/Gemini)
+    - `translation_service.py`: 번역 서비스 (DeepL)
+    - `model_manager_service.py`: AI 모델 관리
+    - `settings.py`: AI 설정 관리
+
+#### 6. 기술 스택 업데이트
+- **새로운 의존성**:
+  - `deepl==1.23.0`: 공식 DeepL Python 라이브러리
+- **환경 변수**:
+  - `DEEPL_API_KEY`: DeepL API 인증 키
+
+---
+
+## 📅 2025-10-09 (목) - 필드 매핑 시스템 고도화 & Public 페이지 이미지 표시
+
+#### 1. 매핑 확인 UI 시스템 구현 ✅
+- **문제점 인식**:
+  - 사용자가 컬렉션 field_definitions를 변경하면 저장된 field_mapping이 맞지 않게 됨
+  - Bulk scrape 시 매핑 적용 여부를 선택할 수 없음
+  - 저장된 매핑을 확인하고 선택할 방법이 없음
+
+- **MappingConfirmationModal 신규 구현** (`frontend/components/MappingConfirmationModal.tsx`):
+  - **저장된 매핑 자동 표시**: Bulk scrape 시작 시 저장된 매핑이 있으면 확인 모달 자동 표시
+  - **매핑 상세 정보**:
+    - 스크래핑 필드 → 사용자 필드 매핑 표시 (화살표 포함)
+    - 필드 일치 여부 시각적 표시 (초록색/빨간색 배지)
+    - "매핑되지 않은 필드 무시" 옵션 표시
+  - **필드 정의 불일치 경고**:
+    - 저장된 매핑의 일부 필드가 현재 컬렉션 필드 정의와 일치하지 않으면 amber 경고 표시
+    - 매핑 삭제 및 재설정 권장
+  - **3가지 선택지**:
+    - "매핑 사용": 저장된 매핑으로 스크래핑 진행
+    - "매핑 사용 안 함": 원본 필드 그대로 저장 (매핑은 유지)
+    - "취소": 작업 취소
+
+- **Bulk scrape API 확장** (`backend/app/api/scraper.py`):
+  - `POST /api/scraper/bulk-scrape`: `apply_mapping: bool` 파라미터 추가
+  - `POST /api/scraper/bulk-scrape-csv`: `apply_mapping: bool` 파라미터 추가
+  - 매핑 적용 로직 추가 (단일 URL 스크래핑과 동일)
+  - `BulkScrapeRequest` 스키마에 `apply_mapping: bool = False` 추가
+
+- **필드 매핑 삭제 API** (`backend/app/api/scraper.py`):
+  - `DELETE /api/scraper/delete-mapping/{collection_id}`: 저장된 매핑 삭제
+  - 컬렉션의 `field_mapping`을 `None`으로 설정
+
+#### 2. BulkImportModal 통합 ✅
+- **매핑 확인 플로우**:
+  1. CSV 파일 선택 → "일괄 등록 시작" 버튼 클릭
+  2. 저장된 매핑 자동 조회 (`/api/scraper/get-mapping`)
+  3. 매핑이 있으면 MappingConfirmationModal 표시
+  4. 사용자 선택에 따라 `apply_mapping` 플래그 전달
+  5. 백엔드에서 매핑 적용하여 아이템 생성
+
+- **frontend/components/BulkImportModal.tsx 수정**:
+  - `handleUpload()`: 매핑 조회 로직 추가
+  - `performUpload(useMapping)`: 실제 업로드 함수 분리
+  - FormData에 `apply_mapping` 추가
+  - MappingConfirmationModal 통합
+
+#### 3. Public 페이지 이미지 표시 개선 ✅
+- **문제점**:
+  - 스크래핑 데이터는 `image_url` 필드에 이미지 URL 저장
+  - Public 페이지 컴포넌트는 `image`, `이미지`, `표지`, `cover` 등만 검색
+  - `image_url` 필드를 찾지 못해 이미지가 표시되지 않음
+
+- **frontend/app/collections/[slug]/page.tsx 수정**:
+  - `getImage()` 함수의 `imageKeys` 배열 맨 앞에 `'image_url'` 추가
+  - 이미지 비율 개선: `aspect-[3/4]` 고정 → `h-auto object-contain` (원본 비율 유지)
+  - 상세보기 모달에서 `image_url` 필드 자동 숨김 (이미 이미지로 표시되므로 중복 방지)
+
+#### 4. 사용자 경험 개선
+- **직관적인 매핑 확인**:
+  - 저장된 매핑을 시각적으로 확인 가능
+  - 필드 불일치 자동 감지 및 경고
+  - 매핑 사용/사용 안 함 선택 가능
+
+- **유연한 작업 흐름**:
+  - 매핑을 사용하지 않아도 저장된 매핑은 유지됨
+  - 다음 스크래핑에서 다시 선택 가능
+  - 필요시 매핑 삭제하여 새로 설정 가능
+
+- **이미지 표시 자동화**:
+  - 스크래핑된 이미지 자동 표시
+  - 원본 비율 유지로 레이아웃 개선
+  - 상세보기에서 중복 정보 자동 제거
+
+#### 5. 기술적 개선
+- **API 일관성**: 모든 스크래핑 엔드포인트에 `apply_mapping` 옵션 통일
+- **매핑 형식 호환성**: 프론트엔드 ↔ 백엔드 매핑 형식 자동 변환
+- **모달 재사용성**: MappingConfirmationModal을 독립 컴포넌트로 구현
+
+---
+
+## 📅 2025-10-08 (수) - UI/UX 개선 & Title 필드 시스템 재설계
+
+#### 1. Public 페이지 텍스트 정리 ✅
+- **문제**: 설명 텍스트에 줄바꿈(`\n`)과 연속 공백이 그대로 표시됨
+- **해결**:
+  - `frontend/app/page.tsx`: 컬렉션 설명에서 공백/줄바꿈 정리
+  - `frontend/app/collections/[slug]/page.tsx`:
+    - 상세 모달의 모든 필드 값에 공백/줄바꿈 정리 적용
+    - `whitespace-pre-wrap` 제거
+  - 정규식: `.replace(/\s+/g, ' ').trim()` - 연속 공백을 단일 공백으로 변환
+
+#### 2. ItemDetailModal ESC 키 지원 ✅
+- **기능**: 상세보기 모달을 ESC 키로 닫을 수 있도록 개선
+- **구현**: `useEffect` + `keydown` 이벤트 리스너
+- **파일**: `frontend/app/collections/[slug]/page.tsx`
+
+#### 3. Title 필드 필수화 및 UI 분리 ✅
+- **문제점**:
+  - 사용자가 "필드 추가" 버튼을 눌러야 title 필드가 보임
+  - title 필드가 일반 필드와 섞여서 삭제/수정 가능해 보임
+  - AI 추천 후 title 필드가 사라지는 버그
+
+- **해결책: Title 필드 영역 분리**
+  - **필수 필드 섹션** (상단)
+    - Title 필드만 파란색 테두리로 고정 표시
+    - "🔒 고정" 배지
+    - Label과 Placeholder만 수정 가능
+    - Key, Type, Required는 수정 불가
+  - **추가 필드 섹션** (하단)
+    - Title을 제외한 나머지 필드만 테이블에 표시
+    - AI 추천, 필드 추가 버튼 항상 노출
+    - 빈 상태에서도 버튼 사용 가능
+
+- **FieldDefinitionEditor 리팩토링** (`frontend/components/FieldDefinitionEditor.tsx`):
+  - `titleField`와 `otherFields`로 분리
+  - `addField()`: title 필드 유지하며 새 필드 추가
+  - `updateTitleField()`: title 필드 전용 업데이트 함수
+  - 모든 CRUD 함수에서 title 필드 보존 로직 구현
+  - 체크박스 선택, 삭제 등에서 title 필드 자동 제외
+
+- **CollectionModal 수정** (`frontend/components/CollectionModal.tsx`):
+  - 새 컬렉션 생성 시 title 필드 기본 추가
+  - `handleAISuggestionApply()`: AI 추천 결과에 title 필드 유지
+  - 매핑 형식 자동 변환 (프론트엔드 ↔ 백엔드)
+
+- **AIFieldSuggestion 개선** (`frontend/components/AIFieldSuggestion.tsx`):
+  - 컬렉션 이름이 없으면 에러 메시지 표시
+  - 빈 상태 UI 개선
+
+#### 4. 타입 에러 수정 ✅
+- **문제**: `Item` 인터페이스에 `title` 속성이 없는데 참조하려고 함
+- **해결**: `frontend/app/collections/[slug]/page.tsx`
+  - 25번 줄: `item.title || 'Untitled'` → `'Untitled'`
+  - 376번 줄: 동일하게 수정
+  - metadata에서 title 필드를 찾는 로직만 사용
+
+#### 5. 사용자 경험 개선
+- **명확한 UI 구조**: 필수 필드 vs 추가 필드 시각적 분리
+- **직관적인 워크플로우**:
+  - 컬렉션 생성 시 title 필드 자동 생성
+  - AI 추천 시 title 필드 자동 보존
+  - 필드 추가 버튼 항상 접근 가능
+- **일관성**: 모든 경로에서 title 필드 보존 (추가/수정/삭제/AI추천)
 
 ---

@@ -14,8 +14,10 @@ from backend.app.services.scraper.web_scraper import WebScraper
 
 async def main():
     urls = [
-        ("교보문고", "https://product.kyobobook.co.kr/detail/S000001713046"),
+        ("교보문고-만화", "https://product.kyobobook.co.kr/detail/S000001713046"),
+        ("교보문고-일반도서", "https://product.kyobobook.co.kr/detail/S000218055272"),
         ("알라딘", "https://www.aladin.co.kr/shop/wproduct.aspx?ItemId=281358410"),
+        ("알라딘-일반도서", "https://www.aladin.co.kr/shop/wproduct.aspx?ItemId=373240731")
     ]
 
     async with WebScraper() as scraper:
@@ -33,6 +35,17 @@ async def main():
                         print(f"  {key}: {str(value)[:200]}...")
                     else:
                         print(f"  {key}: {value}")
+
+                # 페이지수와 카테고리 확인
+                if 'pages' in result:
+                    print(f"\n✅ 페이지수: {result['pages']}")
+                else:
+                    print(f"\n❌ 페이지수 없음")
+
+                if 'category' in result:
+                    print(f"✅ 카테고리: {result['category']}")
+                else:
+                    print(f"❌ 카테고리 없음")
 
             except Exception as e:
                 print(f"❌ 오류 발생: {e}")

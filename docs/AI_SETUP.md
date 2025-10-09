@@ -4,8 +4,8 @@
 LangChain & LangGraph 1.0 alpha를 사용한 AI 기반 컬렉션 필드 자동 추천 기능
 
 ## 지원 AI 제공자
-- ✅ **OpenAI GPT-4o-mini** (추천)
-- ✅ **Google Gemini 2.0 Flash**
+- ✅ **OpenAI** (GPT-4o Mini, GPT-4o, GPT-4.1, GPT-5 시리즈)
+- ✅ **Google Gemini** (2.5 Flash, Pro, Flash Lite)
 
 ---
 
@@ -17,7 +17,7 @@ LangChain & LangGraph 1.0 alpha를 사용한 AI 기반 컬렉션 필드 자동 �
 3. 키 이름 입력 (예: myStorage)
 4. 키 복사 (sk-proj-...)
 
-**비용:** gpt-4o-mini 사용 시 1000회 약 $0.15 (매우 저렴)
+**비용:** GPT-4o Mini 사용 시 1000회 약 $0.15 (매우 저렴)
 
 ### Google Gemini API 키
 1. https://aistudio.google.com/apikey 접속
@@ -25,7 +25,7 @@ LangChain & LangGraph 1.0 alpha를 사용한 AI 기반 컬렉션 필드 자동 �
 3. 프로젝트 선택 또는 생성
 4. 키 복사
 
-**비용:** Gemini 2.0 Flash는 무료 티어 제공 (RPM 제한 있음)
+**비용:** Gemini 2.5 Flash는 무료 티어 제공 (RPM 제한 있음)
 
 ---
 
@@ -155,12 +155,12 @@ GET /api/ai/providers
   "providers": [
     {
       "id": "openai",
-      "name": "OpenAI (GPT-4o-mini)",
+      "name": "OpenAI",
       "available": true
     },
     {
       "id": "gemini",
-      "name": "Google Gemini 2.0 Flash",
+      "name": "Google Gemini",
       "available": false,
       "reason": "API key not configured"
     }
@@ -245,7 +245,7 @@ Failed to parse AI response
 - [ ] 언어 선택 (영어/한국어)
 
 ### 중기
-- [ ] Few-shot learning (COLLECTION_EXAMPLES.md 활용)
+- [ ] Few-shot learning ([COLLECTION_EXAMPLES.md](./COLLECTION_EXAMPLES.md) 활용)
 - [ ] 사용자 피드백 반영 (좋아요/싫어요)
 - [ ] 필드 설명(help_text) 자동 생성
 
@@ -253,3 +253,9 @@ Failed to parse AI response
 - [ ] RAG 기반 유사 컬렉션 검색
 - [ ] 커스텀 프롬프트 지원
 - [ ] 멀티 모달 (이미지 기반 추천)
+
+---
+
+## 관련 문서
+- [컬렉션 예시](./COLLECTION_EXAMPLES.md) - 다양한 컬렉션 타입별 필드 정의 예시
+- [개발 진행 상황](./DEVELOPMENT.md) - AI 기능 개발 히스토리

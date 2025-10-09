@@ -301,6 +301,18 @@ wheels = [
 ]
 
 [[package]]
+name = "deepl"
+version = "1.23.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "requests" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/f4/f3/9cb9c2afea8b401160d4f12a9b368ba818c00dbac28b345c9040fa3cf557/deepl-1.23.0.tar.gz", hash = "sha256:4f54df534d7823dd68b0beac74fcaf6035a22632e4ac949e6acaf24fdae20ee3", size = 47801, upload-time = "2025-10-08T09:08:28.91Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/4d/e6/7ff62db1087eb73b0ced3aa6e044d47d8032ec48a68755720815cf6141ea/deepl-1.23.0-py3-none-any.whl", hash = "sha256:4e7b2fd856eced4bade95e6710580e2d4e89cf0f166adde4362c40eba9068eb7", size = 43513, upload-time = "2025-10-08T09:08:27.458Z" },
+]
+
+[[package]]
 name = "distro"
 version = "1.9.0"
 source = { registry = "https://pypi.org/simple" }
@@ -879,6 +891,7 @@ dependencies = [
     { name = "alembic" },
     { name = "authlib" },
     { name = "beautifulsoup4" },
+    { name = "deepl" },
     { name = "fastapi" },
     { name = "google-auth" },
     { name = "google-generativeai" },
@@ -907,6 +920,7 @@ requires-dist = [
     { name = "alembic", specifier = ">=1.16.5" },
     { name = "authlib", specifier = ">=1.6.5" },
     { name = "beautifulsoup4", specifier = ">=4.12.0" },
+    { name = "deepl", specifier = ">=1.23.0" },
     { name = "fastapi", specifier = ">=0.118.0" },
     { name = "google-auth", specifier = ">=2.41.1" },
     { name = "google-generativeai", specifier = ">=0.8.3" },

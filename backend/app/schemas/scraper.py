@@ -27,6 +27,7 @@ class BulkScrapeRequest(BaseModel):
     """일괄 스크래핑 요청"""
     urls: list[HttpUrl]
     collection_id: int
+    apply_mapping: bool = False  # 저장된 매핑 적용 여부
 
 
 class BulkScrapeProgress(BaseModel):

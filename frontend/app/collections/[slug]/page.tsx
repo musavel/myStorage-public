@@ -10,69 +10,167 @@ type ViewMode = 'grid' | 'list';
 
 interface ItemCardProps {
   item: Item;
-  fields: FieldDefinition[];
+  onDetailClick: () => void;
 }
 
-function ItemCard({ item, fields }: ItemCardProps) {
-  const [expandedFields, setExpandedFields] = useState<Set<string>>(new Set());
-
-  const toggleField = (fieldKey: string) => {
-    setExpandedFields(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(fieldKey)) {
-        newSet.delete(fieldKey);
-      } else {
-        newSet.add(fieldKey);
+function ItemCard({ item, onDetailClick }: ItemCardProps) {
+  // title 필드 찾기 (metadata에서 title, 제목, name, 이름 순으로 검색)
+  const getTitle = () => {
+    const titleKeys = ['title', '제목', 'name', '이름'];
+    for (const key of titleKeys) {
+      if (item.metadata[key]) {
+        return String(item.metadata[key]);
       }
-      return newSet;
-    });
+    }
+    return 'Untitled';
   };
 
-  const isLongText = (text: string) => {
-    return text && text.length > 100;
+  // image 필드 찾기 (metadata에서 image, 이미지, 표지, cover 순으로 검색)
+  const getImage = () => {
+    const imageKeys = ['image_url', 'image', '이미지', '표지', 'cover', 'thumbnail'];
+    for (const key of imageKeys) {
+      if (item.metadata[key]) {
+        const value = String(item.metadata[key]);
+        // URL인지 확인
+        if (value.startsWith('http://') || value.startsWith('https://')) {
+          return value;
+        }
+      }
+    }
+    return null;
   };
+
+  const imageUrl = getImage();
 
   return (
-    <div className="group bg-white rounded-xl border-2 border-slate-200 p-6 hover:border-amber-400 hover:shadow-[0_8px_30px_rgba(0,0,0,0.12),0_0_20px_rgba(251,191,36,0.15)] transition-all duration-300">
-      <div className="space-y-3">
-        {fields.map((field) => {
-          const value = item.metadata[field.key];
-          const valueStr = value ? String(value) : '-';
-          const isExpanded = expandedFields.has(field.key);
-          const shouldTruncate = isLongText(valueStr);
+    <div
+      className="group bg-white rounded-xl border-2 border-slate-200 overflow-hidden hover:border-amber-400 hover:shadow-[0_8px_30px_rgba(0,0,0,0.12),0_0_20px_rgba(251,191,36,0.15)] transition-all duration-300 cursor-pointer"
+      onClick={onDetailClick}
+    >
+      {/* 이미지 썸네일 */}
+      {imageUrl && (
+        <div className="relative w-full bg-slate-100 overflow-hidden">
+          <img
+            src={imageUrl}
+            alt={getTitle()}
+            className="w-full h-auto object-contain group-hover:scale-105 transition-transform duration-300"
+            onError={(e) => {
+              // 이미지 로드 실패 시 숨김
+              (e.target as HTMLImageElement).style.display = 'none';
+            }}
+          />
+        </div>
+      )}
 
-          return (
-            <div key={field.key}>
-              <dt className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">
-                {field.label}
-              </dt>
-              <dd className="text-slate-900 font-medium">
-                {shouldTruncate ? (
-                  <>
-                    <div className={isExpanded ? '' : 'line-clamp-3'}>
-                      {valueStr}
-                    </div>
-                    <button
-                      onClick={() => toggleField(field.key)}
-                      className="text-amber-600 hover:text-amber-700 text-sm font-semibold mt-1 transition-colors"
-                    >
-                      {isExpanded ? '접기 ▲' : '더보기 ▼'}
-                    </button>
-                  </>
-                ) : (
-                  valueStr
-                )}
-              </dd>
-            </div>
-          );
-        })}
-        <div className="pt-3 border-t border-slate-200">
-          <dt className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">
-            등록일
-          </dt>
-          <dd className="text-slate-600 text-sm">
-            {new Date(item.created_at).toLocaleDateString('ko-KR')}
-          </dd>
+      {/* 텍스트 콘텐츠 */}
+      <div className="p-6">
+        <h3 className="text-lg font-bold text-slate-900 mb-4 line-clamp-2">
+          {getTitle()}
+        </h3>
+        <div className="flex items-center justify-between text-sm text-slate-500">
+          <span>{new Date(item.created_at).toLocaleDateString('ko-KR')}</span>
+          <button className="text-amber-600 hover:text-amber-700 font-semibold transition-colors">
+            상세보기 →
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface ItemDetailModalProps {
+  item: Item | null;
+  fields: FieldDefinition[];
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+function ItemDetailModal({ item, fields, isOpen, onClose }: ItemDetailModalProps) {
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('keydown', handleEscape);
+      return () => document.removeEventListener('keydown', handleEscape);
+    }
+  }, [isOpen, onClose]);
+
+  if (!isOpen || !item) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-2xl shadow-2xl border-2 border-slate-200 max-w-2xl w-full max-h-[90vh] overflow-y-auto m-4"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="sticky top-0 bg-gradient-to-b from-white to-stone-50 border-b-2 border-slate-200 px-8 py-6 rounded-t-2xl">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-bold text-slate-900">상세 정보</h2>
+            <button
+              onClick={onClose}
+              className="text-slate-400 hover:text-slate-600 transition-colors"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="px-8 py-6 space-y-4">
+          {fields.map((field) => {
+            const value = item.metadata[field.key];
+            if (!value) return null;
+
+            // image_url은 표시하지 않음 (이미 이미지로 보여주므로)
+            if (field.key === 'image_url') return null;
+
+            // 공백과 줄바꿈 정리
+            const cleanValue = String(value).replace(/\s+/g, ' ').trim();
+
+            return (
+              <div key={field.key} className="border-b border-slate-100 pb-4 last:border-0">
+                <dt className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-2">
+                  {field.label}
+                </dt>
+                <dd className="text-slate-900 break-words">
+                  {cleanValue}
+                </dd>
+              </div>
+            );
+          })}
+
+          <div className="border-b border-slate-100 pb-4">
+            <dt className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-2">
+              등록일
+            </dt>
+            <dd className="text-slate-900">
+              {new Date(item.created_at).toLocaleDateString('ko-KR', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+              })}
+            </dd>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="sticky bottom-0 bg-gradient-to-t from-white to-stone-50 border-t-2 border-slate-200 px-8 py-4 rounded-b-2xl">
+          <button
+            onClick={onClose}
+            className="w-full px-4 py-2 bg-gradient-to-r from-slate-700 to-slate-800 text-amber-100 rounded-lg font-semibold hover:from-slate-600 hover:to-slate-700 transition-all"
+          >
+            닫기
+          </button>
         </div>
       </div>
     </div>
@@ -91,6 +189,18 @@ export default function CollectionItemsPage() {
   const [sortKey, setSortKey] = useState<string>('created_at');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [selectedItem, setSelectedItem] = useState<Item | null>(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+
+  const handleItemClick = (item: Item) => {
+    setSelectedItem(item);
+    setIsDetailModalOpen(true);
+  };
+
+  const handleCloseDetail = () => {
+    setIsDetailModalOpen(false);
+    setSelectedItem(null);
+  };
 
   useEffect(() => {
     fetchCollection();
@@ -299,7 +409,7 @@ export default function CollectionItemsPage() {
           // Grid View
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredAndSortedItems.map((item) => (
-              <ItemCard key={item._id} item={item} fields={fields} />
+              <ItemCard key={item._id} item={item} onDetailClick={() => handleItemClick(item)} />
             ))}
           </div>
         ) : (
@@ -309,32 +419,41 @@ export default function CollectionItemsPage() {
               <table className="w-full">
                 <thead className="bg-slate-50 border-b-2 border-slate-200">
                   <tr>
-                    {fields.map((field) => (
-                      <th
-                        key={field.key}
-                        className="px-6 py-4 text-left text-sm font-bold text-slate-700"
-                      >
-                        {field.label}
-                      </th>
-                    ))}
+                    <th className="px-6 py-4 text-left text-sm font-bold text-slate-700">제목</th>
                     <th className="px-6 py-4 text-left text-sm font-bold text-slate-700">등록일</th>
+                    <th className="px-6 py-4 text-center text-sm font-bold text-slate-700">작업</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
-                  {filteredAndSortedItems.map((item) => (
-                    <tr key={item._id} className="hover:bg-amber-50 transition-colors">
-                      {fields.map((field) => (
-                        <td key={field.key} className="px-6 py-4 text-sm text-slate-700 max-w-xs">
-                          <div className="truncate" title={item.metadata[field.key]}>
-                            {item.metadata[field.key] || '-'}
-                          </div>
+                  {filteredAndSortedItems.map((item) => {
+                    const titleKeys = ['title', '제목', 'name', '이름'];
+                    let title = 'Untitled';
+                    for (const key of titleKeys) {
+                      if (item.metadata[key]) {
+                        title = String(item.metadata[key]);
+                        break;
+                      }
+                    }
+
+                    return (
+                      <tr key={item._id} className="hover:bg-amber-50 transition-colors">
+                        <td className="px-6 py-4 text-sm text-slate-900 font-medium">
+                          {title}
                         </td>
-                      ))}
-                      <td className="px-6 py-4 text-sm text-slate-500">
-                        {new Date(item.created_at).toLocaleDateString('ko-KR')}
-                      </td>
-                    </tr>
-                  ))}
+                        <td className="px-6 py-4 text-sm text-slate-500">
+                          {new Date(item.created_at).toLocaleDateString('ko-KR')}
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <button
+                            onClick={() => handleItemClick(item)}
+                            className="text-amber-600 hover:text-amber-700 font-semibold text-sm transition-colors"
+                          >
+                            상세보기
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -365,6 +484,14 @@ export default function CollectionItemsPage() {
           </Link>
         </div>
       </div>
+
+      {/* Detail Modal */}
+      <ItemDetailModal
+        item={selectedItem}
+        fields={fields}
+        isOpen={isDetailModalOpen}
+        onClose={handleCloseDetail}
+      />
     </div>
   );
 }

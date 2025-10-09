@@ -23,6 +23,8 @@
 - **JWT (python-jose)** - 토큰 기반 인증
 - **LangChain 0.3+ & LangGraph 1.0 alpha** - AI 기능
 - **OpenAI GPT / Google Gemini** - AI 모델
+- **DeepL API** - 번역 (슬러그 생성)
+- **Playwright** - 웹 스크래핑
 
 ### 프론트엔드
 - **Next.js 14** - React 프레임워크
@@ -55,9 +57,15 @@
   - JSON 기반 모델 데이터베이스
   - 설정된 모델 자동 사용
   - 비용 계산 기능
+- ✅ **DeepL 번역 API** (`/api/ai/translate-slug`) - Owner only
+  - 한글/다국어 → 영문 slug 자동 생성
+  - AI 모델 설정 불필요 (DeepL API 사용)
+  - 월 500,000 문자 무료 (Free tier)
 - ✅ **웹 스크래핑 API** (`/api/scraper`) - Owner only
   - Playwright 기반 headless 브라우저 크롤링
   - 사이트별 특화 파싱 (교보문고, 알라딘)
+    - 교보문고: 제목, 저자, 출판사, ISBN, 가격, 설명, 카테고리, 쪽수
+    - 알라딘: 제목, 저자, 출판사, ISBN, 가격, 설명, 쪽수
   - 단일 URL 스크래핑 및 아이템 생성
   - CSV 일괄 등록 (진행 상황 추적)
   - 필드 매핑 시스템 (스크래핑 필드 → 사용자 필드)
@@ -80,7 +88,11 @@
 ### 프론트엔드
 - ✅ **Public 페이지** (조회 전용)
   - 메인 페이지: 컬렉션 카드 + 소유자 이름 (모던 디자인)
-  - 컬렉션 아이템 목록 페이지: 그리드/리스트 뷰 전환, 검색, 정렬
+  - 컬렉션 아이템 목록 페이지:
+    - 그리드 뷰: Title만 표시하는 깔끔한 카드
+    - 리스트 뷰: 제목, 등록일, 상세보기 버튼
+    - 상세 모달: 모든 필드 정보 (ESC/외부 클릭으로 닫기)
+    - 검색, 정렬 기능
 - ✅ **Admin 페이지** (Owner only)
   - Google OAuth 로그인/로그아웃
   - 컬렉션 관리: 생성/수정/삭제 + AI 필드 추천
@@ -91,12 +103,16 @@
   - 인증 상태 전역 관리
 - ✅ **컴포넌트**
   - CollectionModal: 컬렉션 생성/수정 모달 (이모지 피커 포함)
-  - FieldDefinitionEditor: 필드 정의 테이블 에디터 (직접 추가/수정/삭제)
-  - AIFieldSuggestion: AI 필드 추천 UI
+  - FieldDefinitionEditor: 필드 정의 테이블 에디터
+    - **필수 필드 섹션**: Title 필드 고정 표시 (파란색, 🔒 배지)
+    - **추가 필드 섹션**: 자유롭게 추가/삭제 가능한 필드
+    - AI 추천 시 title 필드 자동 보존
+  - AIFieldSuggestion: AI 필드 추천 UI (title 제외)
   - ModelSelectionModal: AI 모델 선택 모달
   - ItemModal: 아이템 생성/수정 모달 (URL 스크래핑 모드 지원)
   - BulkImportModal: CSV 일괄 등록 모달 (실시간 진행 상황 표시)
   - FieldMappingModal: 필드 매핑 UI (자동/수동 매칭, 저장 옵션)
+  - ItemDetailModal: Public 페이지 상세보기 모달 (ESC 키 지원)
 - ✅ **디자인 시스템 (Warehouse/Storage 테마)**
   - Amber/Slate/Stone 컬러 팔레트 (창고 느낌)
   - 그라디언트 배경 및 텍스트
@@ -278,10 +294,12 @@ myStorage/
 ├── docker-compose.yml                # Docker 서비스 (PostgreSQL + MongoDB)
 ├── Dockerfile.backend
 ├── Dockerfile.frontend
-├── COLLECTION_EXAMPLES.md            # 필드 정의 예시
-├── AI_SETUP.md                       # AI 기능 설정 가이드
-├── AUTHENTICATION.md                 # 인증 및 보안 가이드
-├── DEVELOPMENT.md                    # 개발 진행 상황
+├── docs/                             # 📚 문서 디렉토리
+│   ├── DEVELOPMENT.md                # 개발 진행 상황 및 히스토리
+│   ├── AI_SETUP.md                   # AI 기능 설정 가이드
+│   ├── AUTHENTICATION.md             # 인증 및 보안 가이드
+│   ├── COLLECTION_EXAMPLES.md        # 컬렉션 필드 정의 예시
+│   └── SCRAPER_FIELDS.md             # 웹 스크래핑 필드 문서
 └── README.md
 ```
 
@@ -400,11 +418,13 @@ curl -X POST http://localhost:8000/api/scraper/save-mapping \
   ```json
   {
     "fields": [
+      {"key": "title", "label": "제목", "type": "text", "required": true},
       {"key": "author", "label": "저자", "type": "text", "required": false},
       {"key": "category", "label": "카테고리", "type": "select", "options": ["소설", "기술서"]}
     ]
   }
   ```
+  **중요**: `title` 필드는 모든 컬렉션의 필수 필드로 자동 추가되며, 삭제 및 수정이 불가능합니다.
 - `field_mapping` (JSONB): 스크래핑 필드 매핑 설정
   ```json
   {
@@ -429,23 +449,17 @@ curl -X POST http://localhost:8000/api/scraper/save-mapping \
 - MongoDB: 유연한 스키마로 다양한 컬렉션 타입 지원
 - SQL Injection 방지: PostgreSQL 검증 후 MongoDB 접근
 
-## AI 기능 설정
+## AI 기능 설정 (선택사항)
 
-### OpenAI API 키 발급
-1. https://platform.openai.com/api-keys 접속
-2. "Create new secret key" 클릭
-3. `.env`에 `OPENAI_API_KEY` 추가
+AI 필드 추천 기능을 사용하려면 API 키가 필요합니다:
 
-### Google Gemini API 키 발급
-1. https://aistudio.google.com/app/apikey 접속
-2. "Create API key" 클릭
-3. `.env`에 `GEMINI_API_KEY` 추가
+```bash
+# .env 파일에 추가 (최소 하나만 설정하면 됨)
+OPENAI_API_KEY=sk-proj-...
+GEMINI_API_KEY=AIzaSy...
+```
 
-### 지원 모델
-- **OpenAI**: GPT-4o Mini, GPT-4o, GPT-4.1, GPT-4.1 Mini/Nano, GPT-5, GPT-5 Mini/Nano
-- **Google**: Gemini 2.5 Flash, Flash Lite, Pro
-
-자세한 내용은 [AI_SETUP.md](./AI_SETUP.md)를 참고하세요.
+자세한 설정 방법은 [docs/AI_SETUP.md](./docs/AI_SETUP.md)를 참고하세요.
 
 ## 보안 및 인증
 
@@ -465,7 +479,7 @@ curl -X POST http://localhost:8000/api/scraper/save-mapping \
 사용자 → Google OAuth → 프론트엔드 → 백엔드 (JWT 발급) → localStorage 저장
 ```
 
-자세한 내용은 [AUTHENTICATION.md](./AUTHENTICATION.md)를 참고하세요.
+자세한 내용은 [docs/AUTHENTICATION.md](./docs/AUTHENTICATION.md)를 참고하세요.
 
 ### 보안 주의사항
 ⚠️ 프론트엔드의 인증 체크는 UX 개선용이며, **실제 보안은 백엔드에서 처리**됩니다.
@@ -524,36 +538,47 @@ bash scripts/reset_database.sh
 2. 해당 이메일로 Google 로그인
 ```
 
+## 최근 업데이트 (2025-10-09)
+
+### 필드 매핑 시스템 고도화 ✅
+- **매핑 확인 UI**: Bulk scrape 시 저장된 매핑을 자동으로 확인하고 선택할 수 있음
+- **필드 불일치 경고**: 컬렉션 필드 정의와 매핑이 맞지 않으면 자동 경고
+- **매핑 삭제 API**: 저장된 매핑을 삭제하고 재설정 가능
+- **Bulk scrape 매핑 적용**: CSV 일괄 등록 시에도 저장된 매핑 자동 적용
+
+### Public 페이지 이미지 표시 개선 ✅
+- **image_url 필드 지원**: 스크래핑된 이미지가 자동으로 표시됨
+- **원본 비율 유지**: 이미지가 잘리지 않고 원본 비율로 표시
+- **중복 정보 제거**: 상세보기에서 image_url 필드 자동 숨김
+
+### 사용자 경험 개선 ✅
+- **직관적인 매핑 워크플로우**: 저장된 매핑 확인 → 사용/사용 안 함 선택
+- **유연한 작업 흐름**: 매핑을 사용하지 않아도 저장된 설정 유지
+- **자동화**: 한 번 설정한 매핑은 다음 스크래핑에 자동 적용
+
 ## 다음 개발 계획
 
-### 우선순위 1: 필드 매핑 로직 재설계 ⚠️
-**현재 문제**: 스크래핑 결과 중심 매핑으로 인해 못 가져온 필드가 많음
-
-**개선 방향**:
-- 사용자 정의 메타 필드를 기준으로 UI 구성
-- 각 사용자 필드마다 스크래핑 데이터 선택 매핑
-- 스크래핑 못한 필드는 수동 입력 가능
-- 예시:
-  ```
-  [사용자 필드: 책제목] ← [스크래핑: title 선택]
-  [사용자 필드: 저자명] ← [스크래핑: author 선택]
-  [사용자 필드: 가격]   ← [없음 → 수동 입력]
-  ```
-
-### 우선순위 2: 스크래핑 통합
-1. **ItemModal에 필드 매핑 UI 통합**
-   - URL 스크래핑 후 FieldMappingModal 자동 표시
-   - 매핑 적용 후 폼에 자동 입력
-
-2. **BulkImportModal에 필드 매핑 통합**
-   - CSV 업로드 시 저장된 매핑 자동 적용
-
-### 우선순위 3: 고급 기능
+### 우선순위 1: 추가 기능
 - 이미지 업로드 및 관리 시스템
-- 검색 및 필터링 개선
+- 고급 검색 및 필터링
 - pgVector 활용 (유사 아이템 추천)
 
-자세한 개발 진행 상황은 [DEVELOPMENT.md](./DEVELOPMENT.md)를 참고하세요.
+### 우선순위 2: 성능 최적화
+- 대량 데이터 처리 개선
+- 캐싱 전략 구현
+
+자세한 개발 진행 상황은 [docs/DEVELOPMENT.md](./docs/DEVELOPMENT.md)를 참고하세요.
+
+## 📚 문서
+
+### 사용자 가이드
+- **[AI 기능 설정](./docs/AI_SETUP.md)** - OpenAI/Gemini API 키 발급 및 AI 모델 선택
+- **[컬렉션 예시](./docs/COLLECTION_EXAMPLES.md)** - 도서, 보드게임, 영화 등 필드 정의 예시
+- **[스크래핑 필드](./docs/SCRAPER_FIELDS.md)** - 교보문고/알라딘 스크래핑 가능 필드 및 매핑 가이드
+
+### 개발자 가이드
+- **[개발 진행 상황](./docs/DEVELOPMENT.md)** - 상세한 개발 히스토리 및 기술 결정 사항
+- **[인증 및 보안](./docs/AUTHENTICATION.md)** - Google OAuth 2.0 및 JWT 인증 시스템
 
 ## 라이선스
 

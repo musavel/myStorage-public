@@ -59,6 +59,8 @@ services:
       # AI API Keys (선택사항)
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      # Translation API
+      DEEPL_API_KEY: ${DEEPL_API_KEY:-}
     depends_on:
       postgres:
         condition: service_healthy

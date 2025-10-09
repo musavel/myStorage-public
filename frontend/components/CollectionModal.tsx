@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useAISettings } from '@/hooks/useAISettings';
 import { Collection } from '@/lib/api';
 import AIFieldSuggestion from './AIFieldSuggestion';
 import FieldDefinitionEditor, { FieldDefinition } from './FieldDefinitionEditor';
@@ -27,6 +28,7 @@ export default function CollectionModal({
   onSave,
   collection,
 }: CollectionModalProps) {
+  const { settings } = useAISettings();
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
   const [icon, setIcon] = useState('📦');
@@ -71,12 +73,20 @@ export default function CollectionModal({
         setFieldDefinitions([]);
       }
     } else {
-      // Reset for new collection
+      // Reset for new collection with default title field
       setName('');
       setSlug('');
       setIcon('📦');
       setDescription('');
-      setFieldDefinitions([]);
+      setFieldDefinitions([
+        {
+          key: 'title',
+          label: '제목',
+          type: 'text',
+          required: true,
+          placeholder: '제목을 입력하세요',
+        },
+      ]);
     }
   }, [collection, isOpen]);
 
@@ -96,7 +106,7 @@ export default function CollectionModal({
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ text: name }),
       });
 
       if (!response.ok) {
@@ -158,15 +168,11 @@ export default function CollectionModal({
     }
   };
 
-  const handleAISuggestionApply = (aiFields: any) => {
-    // AI 추천 결과를 배열로 변환
-    if (Array.isArray(aiFields)) {
-      setFieldDefinitions(aiFields);
-    } else if (aiFields && aiFields.fields && Array.isArray(aiFields.fields)) {
-      setFieldDefinitions(aiFields.fields);
-    } else {
-      setFieldDefinitions([]);
-    }
+  const handleAISuggestionApply = (selectedFields: FieldDefinition[]) => {
+    // 기존 필드에 선택된 AI 필드를 병합
+    // 중복 체크는 AIFieldSuggestion 컴포넌트에서 이미 처리됨
+    const mergedFields = [...fieldDefinitions, ...selectedFields];
+    setFieldDefinitions(mergedFields);
     setShowAISuggestion(false);
   };
 
@@ -259,6 +265,7 @@ export default function CollectionModal({
                     onClick={handleTranslateSlug}
                     disabled={isTranslatingSlug || !name}
                     className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold bg-gradient-to-r from-amber-100 to-amber-50 text-amber-700 border border-amber-200 rounded-lg hover:from-amber-200 hover:to-amber-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+                    title="DeepL로 슬러그 자동 생성"
                   >
                     {isTranslatingSlug ? (
                       <>
@@ -273,7 +280,7 @@ export default function CollectionModal({
                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
                         </svg>
-                        AI로 영문 변환
+                        DeepL 번역
                       </>
                     )}
                   </button>
@@ -386,6 +393,7 @@ export default function CollectionModal({
                 <AIFieldSuggestion
                   collectionName={name}
                   description={description}
+                  existingFields={fieldDefinitions}
                   onApply={handleAISuggestionApply}
                   onCancel={() => setShowAISuggestion(false)}
                 />

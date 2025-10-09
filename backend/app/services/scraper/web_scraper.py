@@ -225,6 +225,29 @@ class WebScraper:
             if desc_elem:
                 metadata['description'] = (await desc_elem.text_content()).strip()
 
+            # 페이지수 추출 (전체 페이지에서 "n쪽" 패턴 찾기)
+            page_content = await page.content()
+            pages_match = re.search(r'(\d+)\s*쪽', page_content)
+            if pages_match:
+                try:
+                    metadata['pages'] = int(pages_match.group(1))
+                except (ValueError, AttributeError):
+                    metadata['pages'] = None
+
+            # 카테고리 추출 (breadcrumb에서 두 번째 레벨 - 국내도서 > 만화/소설 등)
+            breadcrumb_list = await page.query_selector('.breadcrumb_list')
+            if breadcrumb_list:
+                # data-id 속성이 있는 breadcrumb_item들 가져오기
+                active_items = await breadcrumb_list.query_selector_all('.breadcrumb_item[data-id]')
+                if len(active_items) >= 2:
+                    # 두 번째 카테고리 (국내도서 다음 레벨)
+                    second_item = active_items[1]
+                    link = await second_item.query_selector('a')
+                    if link:
+                        cat_text = (await link.text_content()).strip()
+                        if cat_text:
+                            metadata['category'] = cat_text
+
         except Exception as e:
             logger.warning(f"교보문고 파싱 오류: {e}")
 
@@ -301,6 +324,18 @@ class WebScraper:
                     if desc_text and len(desc_text) > 20:
                         metadata['description'] = desc_text
                         break
+
+            # 페이지수 추출 (전체 페이지에서 "n쪽" 패턴 찾기)
+            page_content = await page.content()
+            pages_match = re.search(r'(\d+)\s*쪽', page_content)
+            if pages_match:
+                try:
+                    metadata['pages'] = int(pages_match.group(1))
+                except (ValueError, AttributeError):
+                    metadata['pages'] = None
+
+            # 카테고리 추출 - 알라딘은 구조가 복잡하여 생략
+            # TODO: 알라딘 카테고리 추출 로직 개선 필요
 
         except Exception as e:
             logger.warning(f"알라딘 파싱 오류: {e}")

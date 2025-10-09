@@ -35,7 +35,7 @@ class SuggestFieldsRequest(BaseModel):
 
 class TranslateSlugRequest(BaseModel):
     """슬러그 번역 요청"""
-    name: str
+    text: str
 
 
 class ModelSelection(BaseModel):
@@ -70,8 +70,8 @@ async def translate_slug_endpoint(
     request: TranslateSlugRequest,
     email: str = Depends(require_owner)
 ):
-    """컬렉션 이름을 영문 slug로 번역 (Owner only)"""
-    slug = await translate_slug(request.name)
+    """텍스트를 영문 slug로 번역 (Owner only)"""
+    slug = await translate_slug(request.text)
     return {"slug": slug}
 
 

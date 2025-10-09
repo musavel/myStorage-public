@@ -20,16 +20,21 @@ JavaScript 렌더링이 필요한 페이지도 처리 가능합니다.
 | `publication_date` | string | 출판일 | "2025.09.04" |
 | `description` | string | 도서 설명 | "유쾌한 해적들의 신나는 모험 이야기..." |
 | `image` | string (URL) | 표지 이미지 URL | "https://contents.kyobobook.co.kr/..." |
+| `image_url` | string (URL) | 표지 이미지 URL (image와 동일) | (자동 추가) |
 | `isbn` | string | ISBN (13자리 우선, 10자리 fallback) | "9791136287489" |
 | `price` | integer | 판매 가격 (원) | 4950 |
+| `pages` | integer | 쪽수 | 200 |
+| `category` | string | 카테고리 (breadcrumb 두 번째 레벨) | "만화" |
 | `source_url` | string (URL) | 원본 페이지 URL | (자동 추가) |
 | `type` | string | Open Graph type | "website" |
 
 #### 구현 세부사항
 - CSS 셀렉터: `.prod_title`, `.author a`, `.publisher a`, `.date`, `.sell_price .val`
-- ISBN: 정규식 `ISBN[:\s]*(\d{13})` 사용 (13자리 우선)
+- ISBN: 이미지 URL에서 우선 추출 (`/pdt/(\d{13})\.`), 실패 시 페이지에서 정규식 검색
 - 가격: 숫자만 추출 후 정수 변환
 - 설명: `.intro_bottom` 요소에서 추출
+- 쪽수: 페이지 전체에서 정규식 `(\d+)\s*쪽` 검색
+- 카테고리: `.breadcrumb_item[data-id]`에서 두 번째 레벨 추출
 
 ---
 
@@ -47,18 +52,22 @@ JavaScript 렌더링이 필요한 페이지도 처리 가능합니다.
 | `publication_date` | string | 출판일 (YYYY-MM-DD) | "2008-03-18" |
 | `description` | string | 도서 설명 | "해적왕의 꿈을 키우는 루피는..." |
 | `image` | string (URL) | 표지 이미지 URL | "https://image.aladin.co.kr/..." |
+| `image_url` | string (URL) | 표지 이미지 URL (image와 동일) | (자동 추가) |
 | `isbn` | string | ISBN (13자리 우선, 10자리 fallback) | "9791136287489" |
 | `price` | integer | 판매 가격 (원, 할인가 기준) | 4950 |
+| `pages` | integer | 쪽수 | 200 |
 | `source_url` | string (URL) | 원본 페이지 URL | (자동 추가) |
 | `type` | string | Open Graph type | "books.book" |
 | `date_published` | string | JSON-LD에서 추출 (있는 경우) | null |
 
 #### 구현 세부사항
 - CSS 셀렉터: `.prod_title`, `.Ere_prod_author_box a`, `.Ere_sub_black a`, `.Ere_prod_price .val`
-- 복수 저자: 여러 `<a>` 태그에서 추출 후 쉼표로 연결
+- 복수 저자: 여러 `<a>` 태그에서 추출 후 쉼표로 연결, HTML 엔티티 디코딩 (`html.unescape()`)
 - 출판일: 정규식 `(\d{4}-\d{2}-\d{2})` 사용
 - ISBN: 페이지 전체에서 정규식 검색
 - 설명: 여러 셀렉터 시도 (`#divContentTab1`, `.Ere_prod_mconts_T`, `.book_summary_wrap`)
+- 쪽수: 페이지 전체에서 정규식 `(\d+)\s*쪽` 검색
+- 카테고리: 구조가 복잡하여 미지원
 
 ---
 
@@ -90,12 +99,14 @@ Open Graph가 없을 경우 fallback:
 | 특징 | 교보문고 | 알라딘 |
 |------|----------|--------|
 | **제목 정확도** | 높음 (부제목 포함) | 보통 (간략) |
-| **저자 표기** | 영문/한글 혼용 | 한글/원문 병기 |
+| **저자 표기** | 영문/한글 혼용 | 한글/원문 병기 (HTML 엔티티 디코딩) |
 | **출판일 형식** | `YYYY.MM.DD` | `YYYY-MM-DD` |
 | **가격 정보** | 판매가 | 할인가 |
 | **설명 길이** | 중간 | 중간 |
-| **ISBN 추출** | CSS 셀렉터 영역 | 페이지 전체 검색 |
+| **ISBN 추출** | 이미지 URL 우선, 페이지 검색 fallback | 페이지 전체 검색 |
 | **이미지 품질** | 고화질 (458px+) | 고화질 (500px) |
+| **쪽수 추출** | ✅ 지원 | ✅ 지원 |
+| **카테고리 추출** | ✅ 지원 (breadcrumb) | ❌ 미지원 |
 
 ---
 
@@ -112,8 +123,10 @@ Open Graph가 없을 경우 fallback:
     {"key": "publication_date", "label": "출판일", "type": "date", "required": false},
     {"key": "isbn", "label": "ISBN", "type": "text", "required": false},
     {"key": "price", "label": "가격", "type": "number", "required": false},
+    {"key": "pages", "label": "쪽수", "type": "number", "required": false},
+    {"key": "category", "label": "카테고리", "type": "text", "required": false},
     {"key": "description", "label": "설명", "type": "textarea", "required": false},
-    {"key": "image", "label": "표지 이미지", "type": "text", "required": false}
+    {"key": "image_url", "label": "표지 이미지", "type": "text", "required": false}
   ]
 }
 ```
@@ -128,8 +141,10 @@ Open Graph가 없을 경우 fallback:
 | `publication_date` | 출판일 |
 | `isbn` | ISBN |
 | `price` | 가격 |
+| `pages` | 쪽수 |
+| `category` | 카테고리 |
 | `description` | 설명 |
-| `image` | 표지이미지 |
+| `image_url` | 표지이미지 |
 | `source_url` | 구매링크 |
 
 ---
@@ -216,7 +231,13 @@ Content-Type: multipart/form-data
 
 file: [CSV with URL column]
 collection_id: 1
+apply_mapping: true  # 저장된 매핑 적용 여부 (옵션, 기본값: false)
 ```
+
+**매핑 적용 플로우:**
+1. CSV 업로드 시 저장된 매핑이 있으면 프론트엔드에서 확인 모달 표시
+2. 사용자가 "매핑 사용" 선택 시 `apply_mapping=true` 전달
+3. 백엔드에서 스크래핑 데이터에 매핑 적용 후 아이템 생성
 
 ### 필드 매핑 저장
 ```
@@ -226,10 +247,21 @@ POST /api/scraper/save-mapping
   "mapping": {
     "title": "책제목",
     "author": "저자명",
-    "publisher": "출판사"
+    "publisher": "출판사",
+    "image_url": "표지이미지"
   },
   "ignore_unmapped": true
 }
+```
+
+### 필드 매핑 조회
+```
+GET /api/scraper/get-mapping/{collection_id}
+```
+
+### 필드 매핑 삭제
+```
+DELETE /api/scraper/delete-mapping/{collection_id}
 ```
 
 ---
@@ -249,4 +281,23 @@ POST /api/scraper/save-mapping
 - BeautifulSoup4: 4.12.0+
 - Python: 3.13+
 
-마지막 업데이트: 2025-10-06
+마지막 업데이트: 2025-10-09
+
+---
+
+## 최근 업데이트 (2025-10-09)
+
+### 새로운 필드
+- ✅ `pages` (쪽수): 교보문고, 알라딘 모두 지원
+- ✅ `category` (카테고리): 교보문고만 지원 (breadcrumb 기반)
+- ✅ `image_url`: `image` 필드와 동일하게 자동 추가되며, Public 페이지에서 우선 사용
+
+### 필드 매핑 시스템 고도화
+- ✅ 매핑 확인 UI (MappingConfirmationModal)
+- ✅ Bulk scrape 시 저장된 매핑 자동 적용 옵션
+- ✅ 필드 정의 불일치 자동 감지 및 경고
+- ✅ 매핑 삭제 API 추가
+
+### 스크래핑 개선
+- ✅ 교보문고 ISBN: 이미지 URL에서 우선 추출
+- ✅ 알라딘 저자명: HTML 엔티티 자동 디코딩 (`尾田&#26628;一&#37070;` → `尾田栄一郎`)

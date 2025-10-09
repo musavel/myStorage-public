@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Collection } from '@/lib/api';
+import MappingConfirmationModal from './MappingConfirmationModal';
+import { FieldDefinition } from './FieldDefinitionEditor';
 
 interface BulkImportModalProps {
   isOpen: boolean;
@@ -28,6 +30,9 @@ export default function BulkImportModal({
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState<ProgressState | null>(null);
   const [result, setResult] = useState<any | null>(null);
+  const [showMappingConfirm, setShowMappingConfirm] = useState(false);
+  const [savedMapping, setSavedMapping] = useState<Record<string, string> | null>(null);
+  const [applyMapping, setApplyMapping] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
 
   // ESC 키로 닫기
@@ -62,14 +67,42 @@ export default function BulkImportModal({
       return;
     }
 
+    // 저장된 매핑 확인
+    try {
+      const token = localStorage.getItem('auth_token');
+      const mappingResponse = await fetch(`/api/scraper/get-mapping/${collection.id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (mappingResponse.ok) {
+        const mappingData = await mappingResponse.json();
+        if (mappingData.mapping && Object.keys(mappingData.mapping).length > 0) {
+          // 매핑이 있으면 확인 모달 표시
+          setSavedMapping(mappingData.mapping);
+          setShowMappingConfirm(true);
+          return;
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch mapping:', error);
+    }
+
+    // 매핑이 없으면 바로 업로드
+    await performUpload(false);
+  };
+
+  const performUpload = async (useMapping: boolean) => {
     setIsProcessing(true);
     setProgress({ total: 0, completed: 0, failed: 0, progress: 0, errors: [] });
 
     try {
       const token = localStorage.getItem('auth_token');
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append('file', file!);
       formData.append('collection_id', collection.id.toString());
+      formData.append('apply_mapping', useMapping.toString());
 
       const response = await fetch('/api/scraper/bulk-scrape-csv', {
         method: 'POST',
@@ -260,6 +293,20 @@ export default function BulkImportModal({
           </div>
         </div>
       </div>
+
+      {/* Mapping Confirmation Modal */}
+      <MappingConfirmationModal
+        isOpen={showMappingConfirm}
+        savedMapping={savedMapping}
+        fieldDefinitions={collection.field_definitions?.fields || []}
+        onConfirm={async (useMapping) => {
+          setShowMappingConfirm(false);
+          await performUpload(useMapping);
+        }}
+        onCancel={() => {
+          setShowMappingConfirm(false);
+        }}
+      />
     </div>
   );
 }

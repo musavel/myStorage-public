@@ -59,7 +59,9 @@ export default async function Home() {
 
                   {/* Description */}
                   {collection.description && (
-                    <p className="text-slate-600 text-sm leading-relaxed">{collection.description}</p>
+                    <p className="text-slate-600 text-sm leading-relaxed line-clamp-3">
+                      {collection.description.replace(/\s+/g, ' ').trim()}
+                    </p>
                   )}
 
                   {/* Arrow Icon */}

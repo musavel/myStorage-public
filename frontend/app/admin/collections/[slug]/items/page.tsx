@@ -144,6 +144,44 @@ export default function ItemsManagePage() {
     return sorted;
   }, [items, searchQuery, sortKey, sortOrder]);
 
+  // 각 필드의 최대 글자 수 계산
+  const fieldMaxLengths = useMemo(() => {
+    const lengths: Record<string, number> = {};
+    fields.forEach((field) => {
+      const maxLength = Math.max(
+        field.label.length, // 헤더 길이
+        ...filteredAndSortedItems.map((item) => {
+          const value = item.metadata[field.key];
+          return value ? String(value).length : 0;
+        })
+      );
+      lengths[field.key] = maxLength;
+    });
+    return lengths;
+  }, [fields, filteredAndSortedItems]);
+
+  // 글자 수에 따른 셀 스타일 계산
+  const getCellStyle = (fieldKey: string) => {
+    const length = fieldMaxLengths[fieldKey] || 10;
+
+    // 10자 이하: 최소 너비만
+    if (length <= 10) {
+      return { minWidth: '150px' };
+    }
+    // 10~50자: 적당한 너비
+    else if (length <= 50) {
+      return { minWidth: '300px', maxWidth: '450px' };
+    }
+    // 50~100자: 넓은 너비
+    else if (length <= 100) {
+      return { minWidth: '450px', maxWidth: '750px' };
+    }
+    // 100자 이상: 매우 넓은 너비
+    else {
+      return { minWidth: '750px', maxWidth: '9000px' };
+    }
+  };
+
   const toggleSort = (key: string) => {
     if (sortKey === key) {
       setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
@@ -291,7 +329,7 @@ export default function ItemsManagePage() {
         ) : (
           <div className="bg-white rounded-xl border-2 border-slate-200 overflow-hidden shadow-sm">
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full table-auto">
                 <thead className="bg-slate-50 border-b-2 border-slate-200">
                   <tr>
                     {fields.map((field) => (
@@ -321,14 +359,22 @@ export default function ItemsManagePage() {
                       className="hover:bg-amber-50 transition-colors"
                     >
                       {fields.map((field) => (
-                        <td key={field.key} className="px-6 py-4 text-sm text-slate-700 max-w-md">
+                        <td
+                          key={field.key}
+                          className="px-6 py-4 text-sm text-slate-700"
+                          style={{
+                            ...getCellStyle(field.key),
+                            wordBreak: 'break-word',
+                            overflowWrap: 'break-word'
+                          }}
+                        >
                           {item.metadata[field.key] || '-'}
                         </td>
                       ))}
-                      <td className="px-6 py-4 text-sm text-slate-500">
+                      <td className="px-6 py-4 text-sm text-slate-500 whitespace-nowrap">
                         {new Date(item.created_at).toLocaleDateString('ko-KR')}
                       </td>
-                      <td className="px-6 py-4 text-right">
+                      <td className="px-6 py-4 text-right whitespace-nowrap">
                         <div className="flex gap-2 justify-end">
                           <button
                             onClick={() => handleEdit(item)}

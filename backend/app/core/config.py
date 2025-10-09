@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     # AI API Keys
     OPENAI_API_KEY: str = ""
     GEMINI_API_KEY: str = ""
+    DEEPL_API_KEY: str = ""  # DeepL 번역 API (슬러그 생성용)
 
     # 서버
     BACKEND_HOST: str = "0.0.0.0"

@@ -26,9 +26,10 @@ SYSTEM_PROMPT = """당신은 컬렉션 관리 시스템의 메타데이터 필�
 5. placeholder는 입력 예시를 제공
 6. 일반적으로 5-15개 필드 추천
 7. 기본 필드: description(설명), image_url(이미지), purchase_date(구매일), purchase_price(구매가격), location(보관위치), notes(메모) 포함
+8. **중요: "title" 필드는 절대 추천하지 마세요. title은 시스템에서 자동으로 관리되는 필수 필드입니다.**
 
 **필드 타입 가이드:**
-- text: 짧은 텍스트 (이름, 제목, ISBN 등)
+- text: 짧은 텍스트 (저자, ISBN, 출판사 등)
 - textarea: 긴 텍스트 (설명, 메모 등)
 - number: 숫자 (가격, 페이지 수, 인원 등)
 - date: 날짜 (구매일, 출판일 등)
@@ -162,82 +163,5 @@ async def suggest_fields(
             status_code=500,
             detail=f"AI request failed: {str(e)}"
         )
-
-
-async def translate_slug(name: str) -> str:
-    """컬렉션 이름을 영문 slug로 번역
-
-    Args:
-        name: 컬렉션 이름 (한글 가능)
-
-    Returns:
-        str: URL-safe한 영문 slug
-    """
-    import re
-
-    try:
-        # 설정된 모델 가져오기
-        text_model_config = get_text_model()
-
-        if text_model_config:
-            provider = text_model_config["provider"]
-            model_id = text_model_config["model_id"]
-            logger.info(f"📝 Slug 번역 - 설정된 모델 사용: {provider}/{model_id}")
-        else:
-            # 모델 설정이 없으면 에러 발생
-            raise HTTPException(
-                status_code=400,
-                detail="AI 모델이 설정되지 않았습니다. 관리자 페이지에서 AI 모델을 먼저 설정해주세요."
-            )
-
-        # LLM 생성 (temperature=0 for consistent results)
-        if provider == "openai":
-            if not settings.OPENAI_API_KEY:
-                raise HTTPException(status_code=400, detail="OpenAI API key not configured")
-            llm = ChatOpenAI(model=model_id, api_key=settings.OPENAI_API_KEY, temperature=0)
-        else:  # gemini
-            if not settings.GEMINI_API_KEY:
-                raise HTTPException(status_code=400, detail="Gemini API key not configured")
-            llm = ChatGoogleGenerativeAI(model=model_id, google_api_key=settings.GEMINI_API_KEY, temperature=0)
-
-        # 프롬프트
-        prompt = f"""다음 컬렉션 이름을 URL-safe한 영문 slug로 번역하세요.
-
-규칙:
-- 소문자만 사용
-- 공백은 하이픈(-)으로
-- 특수문자 제거
-- 의미를 최대한 유지하되 간결하게
-- 한 단어로 표현 가능하면 한 단어로
-
-컬렉션 이름: {name}
-
-응답은 slug만 반환하세요 (예: manga, board-games, lego)"""
-
-        # AI 호출
-        response = await llm.ainvoke([HumanMessage(content=prompt)])
-        slug = response.content.strip().lower()
-
-        # 안전성 검증 - 영문, 숫자, 하이픈만 허용
-        slug = re.sub(r'[^a-z0-9-]', '', slug)
-
-        if not slug:
-            # 번역 실패 시 fallback: 랜덤 해시
-            import hashlib
-            slug_hash = hashlib.md5(name.encode('utf-8')).hexdigest()[:8]
-            slug = f"collection-{slug_hash}"
-            logger.warning(f"⚠️ Slug 번역 실패, fallback 사용: {slug}")
-
-        logger.info(f"✅ Slug 번역 완료: {name} -> {slug}")
-        return slug
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"❌ Slug 번역 실패: {str(e)}")
-        # Fallback: 랜덤 해시
-        import hashlib
-        slug_hash = hashlib.md5(name.encode('utf-8')).hexdigest()[:8]
-        return f"collection-{slug_hash}"
 
 

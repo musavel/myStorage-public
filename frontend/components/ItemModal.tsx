@@ -399,7 +399,8 @@ export default function ItemModal({
                     )}
                   </button>
                   <p className="text-xs text-slate-500">
-                    💡 교보문고, 알라딘 등의 도서 페이지 URL을 입력하면 자동으로 정보를 가져옵니다.
+                    💡 교보문고, 알라딘 등의 도서 페이지 URL을 입력하면 자동으로 정보를 가져옵니다.<br />
+                    ✓ 추출 정보: 제목, 저자, 출판사, 출판일, ISBN, 가격, 설명, 표지, 쪽수 | 카테고리는 교보문고만 지원
                   </p>
                 </div>
               )}
