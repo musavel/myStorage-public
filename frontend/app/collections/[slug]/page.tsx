@@ -403,6 +403,20 @@ export default function CollectionItemsPage() {
           </div>
         </div>
 
+        {/* 결과 건수 */}
+        {!isLoading && (
+          <div className="mb-4">
+            <p className="text-sm text-slate-600">
+              총 <span className="font-semibold text-slate-900">{filteredAndSortedItems.length}</span>건
+              {searchQuery && (
+                <span className="text-slate-500 ml-1">
+                  (전체 {items.length}건 중 검색됨)
+                </span>
+              )}
+            </p>
+          </div>
+        )}
+
         {/* Content */}
         {isLoading ? (
           <div className="text-center py-16">

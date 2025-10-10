@@ -423,6 +423,8 @@ async def bulk_scrape_from_csv_stream(
 
             success_count = 0
             failed_count = 0
+            blocked = False
+            remaining_urls = []
 
             # 하나씩 처리
             for idx, url in enumerate(urls):
@@ -462,6 +464,31 @@ async def bulk_scrape_from_csv_stream(
                     yield f"data: {json.dumps(progress)}\n\n"
 
                 except Exception as e:
+                    error_str = str(e).lower()
+
+                    # Block 감지 (timeout, 403, rate limit 등)
+                    if 'timeout' in error_str or '403' in error_str or 'blocked' in error_str or 'rate limit' in error_str:
+                        blocked = True
+                        # 남은 URL 수집
+                        for remaining_idx in range(idx, len(urls)):
+                            remaining_urls.append({
+                                'row': remaining_idx + 1,
+                                'url': urls[remaining_idx]
+                            })
+
+                        # Block 알림
+                        block_data = {
+                            'type': 'blocked',
+                            'index': idx + 1,
+                            'message': f'교보문고 차단 감지 (행 {idx + 1}). 잠시 후 다시 시도해주세요.',
+                            'total': total,
+                            'success': success_count,
+                            'failed': failed_count,
+                            'remaining_urls': remaining_urls
+                        }
+                        yield f"data: {json.dumps(block_data)}\n\n"
+                        break
+
                     failed_count += 1
                     error_msg = f"행 {idx + 1}: {str(e)}"
 

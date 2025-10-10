@@ -40,6 +40,8 @@ export default function BulkImportModal({
   const [applyMapping, setApplyMapping] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [createdItems, setCreatedItems] = useState<ResultPreview[]>([]);
+  const [isBlocked, setIsBlocked] = useState(false);
+  const [remainingUrls, setRemainingUrls] = useState<Array<{row: number, url: string}>>([]);
   const modalRef = useRef<HTMLDivElement>(null);
 
   // ESC 키로 닫기
@@ -185,6 +187,26 @@ export default function BulkImportModal({
                   progress: data.progress,
                   errors: [...errors],
                 });
+              } else if (data.type === 'blocked') {
+                // Block 감지
+                errors.push(data.message);
+                setProgress({
+                  total: data.total,
+                  completed: data.success,
+                  failed: data.failed,
+                  progress: Math.round((data.success / data.total) * 100),
+                  errors: [...errors],
+                });
+                setIsBlocked(true);
+                setRemainingUrls(data.remaining_urls || []);
+                setResult({
+                  total: data.total,
+                  success: data.success,
+                  failed: data.failed
+                });
+                if (data.success > 0) {
+                  setShowConfirmation(true);
+                }
               } else if (data.type === 'complete') {
                 setProgress({
                   total: data.total,
@@ -226,6 +248,28 @@ export default function BulkImportModal({
   const handleConfirmAndClose = () => {
     onComplete();
     handleClose();
+  };
+
+  const handleDownloadRemainingUrls = () => {
+    if (remainingUrls.length === 0) return;
+
+    // CSV 생성 (UTF-8 BOM 포함)
+    const csvRows = ['title,URL,purchase_date'];
+    remainingUrls.forEach(item => {
+      csvRows.push(`,${item.url},`);
+    });
+    const csvContent = '\uFEFF' + csvRows.join('\n');
+
+    // 다운로드
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${collection.slug}_remaining_urls.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   if (!isOpen) return null;
@@ -301,6 +345,24 @@ export default function BulkImportModal({
               <li><strong>purchase_date</strong> (선택): 구매일 등 추가 정보 (YYYY-MM-DD 형식)</li>
               <li>UTF-8 인코딩 권장 (엑셀에서 열 때 인코딩 주의)</li>
             </ul>
+          </div>
+
+          {/* 교보문고 차단 안내 */}
+          <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <svg className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-blue-900 mb-1">
+                  ℹ️ 교보문고 차단 안내
+                </p>
+                <p className="text-sm text-blue-800">
+                  교보문고는 일정 수 이상의 요청 시 일시적으로 차단할 수 있습니다.
+                  차단 발생 시 자동으로 중단되며, 남은 URL을 CSV로 다운로드하여 나중에 재시도할 수 있습니다.
+                </p>
+              </div>
+            </div>
           </div>
 
           {/* 진행 상황 */}
@@ -387,6 +449,35 @@ export default function BulkImportModal({
                       </div>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {/* Block 경고 및 남은 URL 다운로드 */}
+              {isBlocked && remainingUrls.length > 0 && (
+                <div className="mt-4 p-4 bg-amber-50 border-2 border-amber-300 rounded-lg">
+                  <div className="flex items-start gap-3 mb-3">
+                    <svg className="w-6 h-6 text-amber-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-amber-900 mb-1">
+                        교보문고 차단 감지
+                      </p>
+                      <p className="text-sm text-amber-800">
+                        {remainingUrls.length}개 URL이 처리되지 않았습니다. 잠시 후 다시 시도해주세요.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleDownloadRemainingUrls}
+                    className="w-full px-4 py-2 bg-amber-600 text-white rounded-lg font-semibold hover:bg-amber-700 transition-all flex items-center justify-center gap-2"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    남은 URL CSV 다운로드 ({remainingUrls.length}건)
+                  </button>
                 </div>
               )}
 
