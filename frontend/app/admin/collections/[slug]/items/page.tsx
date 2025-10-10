@@ -342,7 +342,7 @@ export default function ItemsManagePage() {
               >
                 <option value="all">전체</option>
                 {fields
-                  .filter((field) => field.searchable === true)
+                  .filter((field) => field.searchable === true || field.key === 'title')
                   .map((field) => (
                     <option key={field.key} value={field.key}>
                       {field.label}
@@ -366,7 +366,7 @@ export default function ItemsManagePage() {
               >
                 <option value="created_at">등록일</option>
                 {fields
-                  .filter((field) => field.sortable === true)
+                  .filter((field) => field.sortable === true || field.key === 'title')
                   .map((field) => (
                     <option key={field.key} value={field.key}>
                       {field.label}
