@@ -61,6 +61,20 @@ export default function BulkImportModal({
     }
   };
 
+  const handleDownloadTemplate = () => {
+    // CSV 양식 생성 (UTF-8 BOM 포함)
+    const csvContent = '\uFEFF' + 'title,URL,purchase_date\n';
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${collection.slug}_import_template.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   const handleUpload = async () => {
     if (!file) {
       alert('CSV 파일을 선택해주세요.');
@@ -201,14 +215,26 @@ export default function BulkImportModal({
             </label>
           </div>
 
-          {/* 사용 안내 */}
+          {/* 양식 다운로드 */}
           <div className="bg-amber-50 border-2 border-amber-200 rounded-lg p-4">
-            <h3 className="font-semibold text-amber-900 mb-2">📋 CSV 파일 형식</h3>
+            <div className="flex items-start justify-between mb-2">
+              <h3 className="font-semibold text-amber-900">📋 CSV 양식</h3>
+              <button
+                onClick={handleDownloadTemplate}
+                disabled={isProcessing}
+                className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm font-medium"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                양식 다운로드
+              </button>
+            </div>
             <ul className="text-sm text-amber-800 space-y-1 list-disc list-inside">
-              <li>첫 번째 컬럼에 URL을 입력하세요</li>
-              <li>첫 번째 행은 헤더(URL, link, 주소)로 사용 가능</li>
-              <li>UTF-8 인코딩을 사용하세요</li>
-              <li>예시: https://product.kyobobook.co.kr/detail/S000001713046</li>
+              <li><strong>title</strong> (메모용): 어떤 책인지 확인용 (실제 데이터에는 미포함)</li>
+              <li><strong>URL</strong> (필수): 스크래핑할 페이지 주소</li>
+              <li><strong>purchase_date</strong> (선택): 구매일 등 추가 정보 (YYYY-MM-DD 형식)</li>
+              <li>UTF-8 인코딩 권장 (엑셀에서 열 때 인코딩 주의)</li>
             </ul>
           </div>
 

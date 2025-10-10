@@ -126,21 +126,37 @@ collection_id: 1
 apply_mapping: true
 ```
 
+#### CSV 파일 형식
+- **양식 다운로드**: 프론트엔드에서 제공
+- **컬럼 순서**: `title,URL,purchase_date`
+- **title** (메모용): 사용자 확인용 메모, 실제 데이터에는 미포함
+- **URL** (필수): 스크래핑할 페이지 주소
+- **purchase_date** (선택): 구매일 등 추가 정보 (YYYY-MM-DD 형식)
+- **인코딩**: UTF-8 (BOM 포함)
+
+**동작 방식**:
+1. CSV에서 URL 추출 (대소문자 무시: url, URL, link, 주소)
+2. 각 URL 스크래핑
+3. CSV의 추가 컬럼 데이터를 스크래핑 결과에 병합 (title 제외)
+4. 필드 매핑 적용 (선택)
+5. 아이템 생성
+
 ---
 
-## CSV 형식
+## CSV 형식 예시
 
 ```csv
-URL
-https://product.kyobobook.co.kr/detail/S000001713046
-https://www.aladin.co.kr/shop/wproduct.aspx?ItemId=12345
+title,URL,purchase_date
+원피스 1권,https://product.kyobobook.co.kr/detail/S000001713046,2024-01-15
+해리포터,https://www.aladin.co.kr/shop/wproduct.aspx?ItemId=12345,2024-02-20
 ...
 ```
 
 **요구사항**:
-- UTF-8 인코딩
-- 헤더: `URL`, `link`, `주소` 중 하나
-- 각 행에 URL 하나씩
+- UTF-8 인코딩 (BOM 포함 권장)
+- 헤더: `URL`, `link`, `주소` 중 하나 필수
+- `title` 컬럼: 사용자 확인용 메모 (실제 데이터에는 미포함)
+- 추가 컬럼 (예: `purchase_date`): 스크래핑 데이터에 병합됨
 
 ---
 

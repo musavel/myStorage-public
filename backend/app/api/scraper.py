@@ -21,6 +21,7 @@ from ..schemas.scraper import (
 from ..services.scraper.web_scraper import scrape_url, scrape_urls, apply_field_mapping
 from ..services.item.item_service import create_item as create_item_service
 from ..models.collection import Collection
+from ..schemas.item import ItemCreate
 from sqlalchemy import select
 
 
@@ -155,11 +156,11 @@ async def scrape_and_create_item(
         metadata = await scrape_url(str(request.url))
 
         # 아이템 생성
-        item = await create_item_service(
-            db=db,
+        item_data = ItemCreate(
             collection_id=request.collection_id,
-            metadata=metadata,
+            metadata=metadata
         )
+        item = await create_item_service(item_data, db)
 
         return {
             "success": True,
@@ -218,11 +219,11 @@ async def bulk_scrape_urls(
                 metadata = apply_field_mapping(result, mapping, ignore_unmapped)
 
             # 아이템 생성
-            item = await create_item_service(
-                db=db,
+            item_data = ItemCreate(
                 collection_id=request.collection_id,
-                metadata=metadata,
+                metadata=metadata
             )
+            item = await create_item_service(item_data, db)
             success_count += 1
             items.append({
                 "id": str(item["_id"]),
@@ -260,15 +261,28 @@ async def bulk_scrape_from_csv(
         # CSV 파일 읽기
         contents = await file.read()
         decoded = contents.decode('utf-8')
-        csv_reader = csv.reader(io.StringIO(decoded))
+        csv_reader = csv.DictReader(io.StringIO(decoded))
 
-        # 헤더 스킵 (선택적)
+        # URL과 추가 데이터 수집
         urls = []
-        for idx, row in enumerate(csv_reader):
-            if idx == 0 and row and row[0].lower().strip() in ['url', 'link', '주소']:
-                continue  # 헤더 스킵
-            if row and row[0].strip():
-                urls.append(row[0].strip())
+        additional_data = []  # 각 URL에 대한 추가 데이터 (title, purchase_date 등)
+
+        for row in csv_reader:
+            # URL 필드 찾기 (대소문자 구분 없이)
+            url = None
+            for key in row.keys():
+                if key.lower() in ['url', 'link', '주소']:
+                    url = row[key].strip()
+                    break
+
+            if url:
+                urls.append(url)
+                # 추가 데이터 수집 (purchase_date 등, title은 제외 - 메모용)
+                extra = {}
+                for key, value in row.items():
+                    if key.lower() not in ['url', 'link', '주소', 'title'] and value.strip():
+                        extra[key] = value.strip()
+                additional_data.append(extra)
 
         if not urls:
             raise HTTPException(status_code=400, detail="CSV 파일에 URL이 없습니다.")
@@ -302,17 +316,22 @@ async def bulk_scrape_from_csv(
                 continue
 
             try:
+                # 스크래핑 결과에 CSV 추가 데이터 병합
+                metadata = result.copy()
+                if idx < len(additional_data):
+                    # CSV의 추가 데이터를 스크래핑 결과에 병합 (CSV 데이터가 우선)
+                    metadata.update(additional_data[idx])
+
                 # 매핑 적용
-                metadata = result
                 if mapping:
-                    metadata = apply_field_mapping(result, mapping, ignore_unmapped)
+                    metadata = apply_field_mapping(metadata, mapping, ignore_unmapped)
 
                 # 아이템 생성
-                item = await create_item_service(
-                    db=db,
+                item_data = ItemCreate(
                     collection_id=collection_id,
-                    metadata=metadata,
+                    metadata=metadata
                 )
+                item = await create_item_service(item_data, db)
                 success_count += 1
                 items.append({
                     "id": str(item["_id"]),
