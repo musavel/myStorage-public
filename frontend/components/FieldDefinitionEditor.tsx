@@ -23,10 +23,14 @@ import { CSS } from '@dnd-kit/utilities';
 export interface FieldDefinition {
   key: string;
   label: string;
-  type: 'text' | 'textarea' | 'number' | 'date' | 'select';
+  type: 'text' | 'textarea' | 'number' | 'date' | 'select' | 'url';
   required: boolean;
   placeholder?: string;
   options?: string[];
+  // 표시 및 기능 옵션
+  sortable?: boolean;      // 정렬 가능 여부
+  searchable?: boolean;    // 검색 가능 여부
+  showInPublic?: boolean;  // public 페이지에 표시 여부
 }
 
 interface FieldDefinitionEditorProps {
@@ -139,6 +143,33 @@ function SortableFieldRow({
           onChange={(e) => onUpdate(index, { placeholder: e.target.value })}
           className="w-full px-2 py-1 text-xs border border-slate-200 rounded focus:border-amber-400 focus:outline-none"
           placeholder="예시..."
+        />
+      </td>
+      <td className="px-3 py-2 text-center">
+        <input
+          type="checkbox"
+          checked={field.sortable ?? false}
+          onChange={(e) => onUpdate(index, { sortable: e.target.checked })}
+          className="rounded border-slate-300"
+          title="정렬 가능"
+        />
+      </td>
+      <td className="px-3 py-2 text-center">
+        <input
+          type="checkbox"
+          checked={field.searchable ?? false}
+          onChange={(e) => onUpdate(index, { searchable: e.target.checked })}
+          className="rounded border-slate-300"
+          title="검색 가능"
+        />
+      </td>
+      <td className="px-3 py-2 text-center">
+        <input
+          type="checkbox"
+          checked={field.showInPublic ?? true}
+          onChange={(e) => onUpdate(index, { showInPublic: e.target.checked })}
+          className="rounded border-slate-300"
+          title="공개 표시"
         />
       </td>
       <td className="px-3 py-2 text-center">
@@ -362,6 +393,9 @@ export default function FieldDefinitionEditor({
                     <th className="px-3 py-3 text-left font-semibold text-slate-700">Type</th>
                     <th className="px-3 py-3 text-center font-semibold text-slate-700">필수</th>
                     <th className="px-3 py-3 text-left font-semibold text-slate-700">Placeholder</th>
+                    <th className="px-3 py-3 text-center font-semibold text-slate-700" title="정렬 가능">정렬</th>
+                    <th className="px-3 py-3 text-center font-semibold text-slate-700" title="검색 가능">검색</th>
+                    <th className="px-3 py-3 text-center font-semibold text-slate-700" title="공개 표시">공개</th>
                     <th className="w-20 px-3 py-3 text-center font-semibold text-slate-700">작업</th>
                   </tr>
                 </thead>

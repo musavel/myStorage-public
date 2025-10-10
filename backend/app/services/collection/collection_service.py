@@ -80,7 +80,7 @@ async def create_collection(collection_data: CollectionCreate, db: Session) -> C
     mongo_db = get_database()
     await mongo_db.create_collection(mongo_collection_name)
     await mongo_db[mongo_collection_name].create_index("title")  # 제목 인덱스
-    await mongo_db[mongo_collection_name].create_index("created_at")  # 생성일 인덱스
+    await mongo_db[mongo_collection_name].create_index("created_at")  # 등록일 인덱스
 
     return db_collection
 

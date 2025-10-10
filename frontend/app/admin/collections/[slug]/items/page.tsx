@@ -23,6 +23,7 @@ export default function ItemsManagePage() {
   const [editingItem, setEditingItem] = useState<Item | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchField, setSearchField] = useState<string>('all'); // 'all' 또는 특정 필드 key
   const [sortKey, setSortKey] = useState<string>('created_at');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -166,11 +167,18 @@ export default function ItemsManagePage() {
     // 검색
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      filtered = items.filter((item) =>
-        Object.values(item.metadata).some((value) =>
-          String(value).toLowerCase().includes(query)
-        )
-      );
+      filtered = items.filter((item) => {
+        if (searchField === 'all') {
+          // 모든 필드에서 검색
+          return Object.values(item.metadata).some((value) =>
+            String(value).toLowerCase().includes(query)
+          );
+        } else {
+          // 특정 필드에서만 검색
+          const value = item.metadata[searchField];
+          return value ? String(value).toLowerCase().includes(query) : false;
+        }
+      });
     }
 
     // 정렬
@@ -192,7 +200,7 @@ export default function ItemsManagePage() {
     });
 
     return sorted;
-  }, [items, searchQuery, sortKey, sortOrder]);
+  }, [items, searchQuery, searchField, sortKey, sortOrder]);
 
   // 각 필드의 최대 글자 수 계산
   const fieldMaxLengths = useMemo(() => {
@@ -326,13 +334,27 @@ export default function ItemsManagePage() {
       <div className="max-w-7xl mx-auto px-8 py-6">
         <div className="bg-white rounded-lg border-2 border-slate-200 p-4 mb-6 shadow-sm">
           <div className="flex gap-4 items-center">
-            <div className="flex-1">
+            <div className="flex-1 flex gap-2">
+              <select
+                value={searchField}
+                onChange={(e) => setSearchField(e.target.value)}
+                className="px-3 py-2 border-2 border-slate-300 rounded-lg focus:border-amber-500 focus:outline-none bg-white"
+              >
+                <option value="all">전체</option>
+                {fields
+                  .filter((field) => field.searchable === true)
+                  .map((field) => (
+                    <option key={field.key} value={field.key}>
+                      {field.label}
+                    </option>
+                  ))}
+              </select>
               <input
                 type="text"
-                placeholder="검색..."
+                placeholder={searchField === 'all' ? '전체 검색...' : `${fields.find(f => f.key === searchField)?.label || ''} 검색...`}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full px-4 py-2 border-2 border-slate-300 rounded-lg focus:border-amber-500 focus:ring-2 focus:ring-amber-200 focus:outline-none transition-all"
+                className="flex-1 px-4 py-2 border-2 border-slate-300 rounded-lg focus:border-amber-500 focus:ring-2 focus:ring-amber-200 focus:outline-none transition-all"
               />
             </div>
             <div className="flex gap-2 items-center">
@@ -342,12 +364,14 @@ export default function ItemsManagePage() {
                 onChange={(e) => setSortKey(e.target.value)}
                 className="px-4 py-2 border-2 border-slate-300 rounded-lg focus:border-amber-500 focus:outline-none"
               >
-                <option value="created_at">생성일</option>
-                {fields.map((field) => (
-                  <option key={field.key} value={field.key}>
-                    {field.label}
-                  </option>
-                ))}
+                <option value="created_at">등록일</option>
+                {fields
+                  .filter((field) => field.sortable === true)
+                  .map((field) => (
+                    <option key={field.key} value={field.key}>
+                      {field.label}
+                    </option>
+                  ))}
               </select>
               <button
                 onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
@@ -415,7 +439,7 @@ export default function ItemsManagePage() {
                         </span>
                       </th>
                     ))}
-                    <th className="px-6 py-4 text-left text-sm font-bold text-slate-700 whitespace-nowrap">생성일</th>
+                    <th className="px-6 py-4 text-left text-sm font-bold text-slate-700 whitespace-nowrap">등록일</th>
                     <th className="px-6 py-4 text-right text-sm font-bold text-slate-700 whitespace-nowrap">작업</th>
                   </tr>
                 </thead>

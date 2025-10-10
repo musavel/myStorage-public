@@ -134,6 +134,10 @@ function ItemDetailModal({ item, fields, isOpen, onClose }: ItemDetailModalProps
             // image_url은 표시하지 않음 (이미 이미지로 보여주므로)
             if (field.key === 'image_url') return null;
 
+            // public 페이지에서 숨김 처리된 필드는 표시하지 않음
+            // 디버깅: console.log(field.key, field.showInPublic);
+            if (field.showInPublic === false) return null;
+
             // 공백과 줄바꿈 정리
             const cleanValue = String(value).replace(/\s+/g, ' ').trim();
 
@@ -148,19 +152,6 @@ function ItemDetailModal({ item, fields, isOpen, onClose }: ItemDetailModalProps
               </div>
             );
           })}
-
-          <div className="border-b border-slate-100 pb-4">
-            <dt className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-2">
-              등록일
-            </dt>
-            <dd className="text-slate-900">
-              {new Date(item.created_at).toLocaleDateString('ko-KR', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-              })}
-            </dd>
-          </div>
         </div>
 
         {/* Footer */}
@@ -186,6 +177,7 @@ export default function CollectionItemsPage() {
   const [items, setItems] = useState<Item[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchField, setSearchField] = useState<string>('all'); // 'all' 또는 특정 필드 key
   const [sortKey, setSortKey] = useState<string>('created_at');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
@@ -245,11 +237,18 @@ export default function CollectionItemsPage() {
     // 검색
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      filtered = items.filter((item) =>
-        Object.values(item.metadata).some((value) =>
-          String(value).toLowerCase().includes(query)
-        )
-      );
+      filtered = items.filter((item) => {
+        if (searchField === 'all') {
+          // 모든 필드에서 검색
+          return Object.values(item.metadata).some((value) =>
+            String(value).toLowerCase().includes(query)
+          );
+        } else {
+          // 특정 필드에서만 검색
+          const value = item.metadata[searchField];
+          return value ? String(value).toLowerCase().includes(query) : false;
+        }
+      });
     }
 
     // 정렬
@@ -271,7 +270,7 @@ export default function CollectionItemsPage() {
     });
 
     return sorted;
-  }, [items, searchQuery, sortKey, sortOrder]);
+  }, [items, searchQuery, searchField, sortKey, sortOrder]);
 
   if (!collection) {
     return (
@@ -322,13 +321,27 @@ export default function CollectionItemsPage() {
         <div className="bg-white rounded-lg border-2 border-slate-200 p-4 mb-6 shadow-sm">
           <div className="flex flex-col md:flex-row gap-4">
             {/* Search */}
-            <div className="flex-1">
+            <div className="flex-1 flex gap-2">
+              <select
+                value={searchField}
+                onChange={(e) => setSearchField(e.target.value)}
+                className="px-3 py-2 border-2 border-slate-300 rounded-lg focus:border-amber-500 focus:outline-none bg-white"
+              >
+                <option value="all">전체</option>
+                {fields
+                  .filter((field) => field.searchable === true)
+                  .map((field) => (
+                    <option key={field.key} value={field.key}>
+                      {field.label}
+                    </option>
+                  ))}
+              </select>
               <input
                 type="text"
-                placeholder="검색..."
+                placeholder={searchField === 'all' ? '전체 검색...' : `${fields.find(f => f.key === searchField)?.label || ''} 검색...`}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full px-4 py-2 border-2 border-slate-300 rounded-lg focus:border-amber-500 focus:ring-2 focus:ring-amber-200 focus:outline-none transition-all"
+                className="flex-1 px-4 py-2 border-2 border-slate-300 rounded-lg focus:border-amber-500 focus:ring-2 focus:ring-amber-200 focus:outline-none transition-all"
               />
             </div>
 
@@ -340,12 +353,14 @@ export default function CollectionItemsPage() {
                 onChange={(e) => setSortKey(e.target.value)}
                 className="px-4 py-2 border-2 border-slate-300 rounded-lg focus:border-amber-500 focus:outline-none"
               >
-                <option value="created_at">생성일</option>
-                {fields.map((field) => (
-                  <option key={field.key} value={field.key}>
-                    {field.label}
-                  </option>
-                ))}
+                <option value="created_at">등록일</option>
+                {fields
+                  .filter((field) => field.sortable === true)
+                  .map((field) => (
+                    <option key={field.key} value={field.key}>
+                      {field.label}
+                    </option>
+                  ))}
               </select>
               <button
                 onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
@@ -420,7 +435,6 @@ export default function CollectionItemsPage() {
                 <thead className="bg-slate-50 border-b-2 border-slate-200">
                   <tr>
                     <th className="px-6 py-4 text-left text-sm font-bold text-slate-700">제목</th>
-                    <th className="px-6 py-4 text-left text-sm font-bold text-slate-700">등록일</th>
                     <th className="px-6 py-4 text-center text-sm font-bold text-slate-700">작업</th>
                   </tr>
                 </thead>
@@ -439,9 +453,6 @@ export default function CollectionItemsPage() {
                       <tr key={item._id} className="hover:bg-amber-50 transition-colors">
                         <td className="px-6 py-4 text-sm text-slate-900 font-medium">
                           {title}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-slate-500">
-                          {new Date(item.created_at).toLocaleDateString('ko-KR')}
                         </td>
                         <td className="px-6 py-4 text-center">
                           <button
