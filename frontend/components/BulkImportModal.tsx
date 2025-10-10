@@ -254,6 +254,20 @@ export default function BulkImportModal({
           }
         }
       }
+
+      // Reader 정상 종료 후 처리
+      // progress가 있으면 결과 설정 (blocked나 complete 이벤트를 못 받은 경우 대비)
+      if (progress && !result) {
+        console.warn('[WARNING] Reader 종료되었지만 결과 이벤트를 받지 못함');
+        setResult({
+          total: progress.total,
+          success: progress.completed,
+          failed: progress.failed
+        });
+        if (progress.completed > 0) {
+          setShowConfirmation(true);
+        }
+      }
     } catch (error) {
       console.error('Bulk import error:', error);
       alert(error instanceof Error ? error.message : 'CSV 처리 중 오류가 발생했습니다.');
