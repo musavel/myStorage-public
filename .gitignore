@@ -61,4 +61,4 @@ docker-compose.override.yml
 client_secret_50044611935-gbd11eepnk5jmkqmhaouilh75qlsdhnr.apps.googleusercontent.com.json
 COMMIT_MESSAGE.txt
 ai-model-selection-feature/
-ai-model-selection-feature.tar.gz
+ai-model-selection-feature.tar.gzdata/

@@ -2,6 +2,71 @@
 
 유틸리티 스크립트 모음
 
+---
+
+## 📦 백업 및 복원
+
+### backup_db.sh
+
+PostgreSQL과 MongoDB 데이터를 백업합니다.
+
+#### 사용법
+
+```bash
+# 기본 백업 (오래된 파일 삭제 안 함)
+./scripts/backup_db.sh
+
+# 백업 + 7일 이상 된 백업 삭제
+./scripts/backup_db.sh --cleanup
+
+# 백업 + 30일 이상 된 백업 삭제
+./scripts/backup_db.sh --cleanup --cleanup-days 30
+
+# 도움말
+./scripts/backup_db.sh --help
+```
+
+#### 옵션
+
+- `--cleanup`: 백업 후 오래된 백업 파일 자동 삭제
+- `--cleanup-days N`: N일 이상 된 백업 삭제 (기본값: 7일, `--cleanup` 필요)
+- `-h, --help`: 도움말 표시
+
+#### 기능
+
+- PostgreSQL 전체 DB를 SQL 파일로 백업
+- MongoDB 전체 DB를 BSON 파일로 백업
+- 타임스탬프가 포함된 파일명으로 저장 (`backup_YYYYMMDD_HHMMSS.tar.gz`)
+- 자동 압축 (tar.gz)
+- 옵션으로 오래된 백업 파일 정리 가능
+
+#### 백업 위치
+
+```
+data/backups/backup_YYYYMMDD_HHMMSS.tar.gz
+```
+
+### restore_db.sh
+
+백업된 데이터를 복원합니다.
+
+#### 사용법
+
+```bash
+./scripts/restore_db.sh <backup_file.tar.gz>
+
+# 예시
+./scripts/restore_db.sh backup_20251010_153045.tar.gz
+```
+
+#### 주의사항
+
+- ⚠️ **기존 데이터가 모두 삭제됩니다!**
+- 복원 전 확인 메시지가 표시됩니다 (`yes` 입력 필요)
+- 복원 후 백엔드 서비스 재시작 권장
+
+---
+
 ## update_series.py
 
 제목 키워드로 필터링하여 시리즈를 일괄 업데이트하는 스크립트 (click CLI)
