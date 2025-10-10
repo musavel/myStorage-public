@@ -40,6 +40,9 @@ class WebScraper:
 
         Returns:
             추출된 메타데이터 딕셔너리
+
+        Raises:
+            ValueError: 필수 필드가 없거나 페이지 로딩 실패 시
         """
         if not self._browser:
             raise RuntimeError("WebScraper must be used as context manager")
@@ -59,6 +62,10 @@ class WebScraper:
             # 메타데이터 추출
             metadata = await self._extract_metadata(soup, page)
             metadata['source_url'] = url
+
+            # 필수 필드 검증
+            if not metadata.get('title') or not metadata['title'].strip():
+                raise ValueError(f"페이지에서 제목을 찾을 수 없습니다. 페이지 로딩이 실패했거나 차단되었을 수 있습니다.")
 
             return metadata
 

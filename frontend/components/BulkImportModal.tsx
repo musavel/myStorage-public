@@ -25,6 +25,12 @@ interface ResultPreview {
   metadata: Record<string, any>;
 }
 
+interface RemainingUrl {
+  row: number;
+  url: string;
+  original_row?: Record<string, any>;
+}
+
 export default function BulkImportModal({
   isOpen,
   onClose,
@@ -41,7 +47,7 @@ export default function BulkImportModal({
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [createdItems, setCreatedItems] = useState<ResultPreview[]>([]);
   const [isBlocked, setIsBlocked] = useState(false);
-  const [remainingUrls, setRemainingUrls] = useState<Array<{row: number, url: string}>>([]);
+  const [remainingUrls, setRemainingUrls] = useState<RemainingUrl[]>([]);
   const modalRef = useRef<HTMLDivElement>(null);
 
   // ESC 키로 닫기
@@ -155,7 +161,10 @@ export default function BulkImportModal({
 
           for (const line of lines) {
             if (line.startsWith('data: ')) {
-              const data = JSON.parse(line.slice(6));
+              try {
+                const jsonStr = line.slice(6).trim();
+                if (!jsonStr) continue; // 빈 문자열 스킵
+                const data = JSON.parse(jsonStr);
 
               if (data.type === 'start') {
                 setProgress({
@@ -189,6 +198,7 @@ export default function BulkImportModal({
                 });
               } else if (data.type === 'blocked') {
                 // Block 감지
+                console.log('[BLOCKED] 차단 감지:', data);
                 errors.push(data.message);
                 setProgress({
                   total: data.total,
@@ -208,6 +218,18 @@ export default function BulkImportModal({
                   setShowConfirmation(true);
                 }
               } else if (data.type === 'complete') {
+                console.log('[COMPLETE] 완료 이벤트:', data);
+
+                // 불완전한 완료 감지: 성공 + 실패 < 전체
+                const processed = data.success + data.failed;
+                if (processed < data.total) {
+                  console.warn(`[WARNING] 불완전한 완료: ${processed}/${data.total} 처리됨`);
+                  // 불완전한 완료는 blocked로 처리
+                  const unprocessedCount = data.total - processed;
+                  setIsBlocked(true);
+                  errors.push(`처리 중 연결이 끊어졌습니다. ${unprocessedCount}개 URL이 처리되지 않았습니다.`);
+                }
+
                 setProgress({
                   total: data.total,
                   completed: data.success,
@@ -223,6 +245,10 @@ export default function BulkImportModal({
                 }
               } else if (data.type === 'error') {
                 throw new Error(data.message);
+              }
+              } catch (parseError) {
+                // JSON 파싱 에러는 무시 (불완전한 chunk)
+                console.warn('JSON parse error, skipping line:', line, parseError);
               }
             }
           }
@@ -256,7 +282,24 @@ export default function BulkImportModal({
     // CSV 생성 (UTF-8 BOM 포함)
     const csvRows = ['title,URL,purchase_date'];
     remainingUrls.forEach(item => {
-      csvRows.push(`,${item.url},`);
+      // 원본 row 데이터가 있으면 그대로 사용, 없으면 빈 필드
+      if (item.original_row) {
+        const row = item.original_row;
+        const title = row.title || '';
+        const url = item.url;
+        const purchaseDate = row.purchase_date || '';
+        // CSV 형식으로 이스케이프 (쉼표나 따옴표가 있을 수 있음)
+        const escapeCsv = (str: string) => {
+          if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+            return `"${str.replace(/"/g, '""')}"`;
+          }
+          return str;
+        };
+        csvRows.push(`${escapeCsv(title)},${escapeCsv(url)},${escapeCsv(purchaseDate)}`);
+      } else {
+        // 원본 데이터가 없으면 URL만
+        csvRows.push(`,${item.url},`);
+      }
     });
     const csvContent = '\uFEFF' + csvRows.join('\n');
 
@@ -281,10 +324,10 @@ export default function BulkImportModal({
     >
       <div
         ref={modalRef}
-        className="bg-white rounded-xl max-w-2xl w-full shadow-2xl"
+        className="bg-white rounded-xl max-w-2xl w-full shadow-2xl flex flex-col max-h-[90vh]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="border-b-2 border-slate-200 px-6 py-4 flex justify-between items-center">
+        <div className="border-b-2 border-slate-200 px-6 py-4 flex justify-between items-center flex-shrink-0">
           <h2 className="text-2xl font-bold text-slate-900">CSV 일괄 등록</h2>
           <button
             onClick={handleClose}
@@ -297,7 +340,7 @@ export default function BulkImportModal({
           </button>
         </div>
 
-        <div className="p-6 space-y-6">
+        <div className="p-6 space-y-6 overflow-y-auto flex-1">
           {/* 파일 선택 */}
           <div className="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center hover:border-amber-400 transition-all">
             <input
@@ -461,10 +504,10 @@ export default function BulkImportModal({
                     </svg>
                     <div className="flex-1">
                       <p className="text-sm font-semibold text-amber-900 mb-1">
-                        교보문고 차단 감지
+                        처리 중단됨
                       </p>
                       <p className="text-sm text-amber-800">
-                        {remainingUrls.length}개 URL이 처리되지 않았습니다. 잠시 후 다시 시도해주세요.
+                        차단 또는 페이지 로딩 실패로 중단되었습니다. {remainingUrls.length}개 URL이 처리되지 않았습니다. 잠시 후 다시 시도해주세요.
                       </p>
                     </div>
                   </div>

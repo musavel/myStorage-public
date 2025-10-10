@@ -44,7 +44,7 @@ function ItemCard({ item, onDetailClick }: ItemCardProps) {
 
   return (
     <div
-      className="group bg-white rounded-xl border-2 border-slate-200 overflow-hidden hover:border-amber-400 hover:shadow-[0_8px_30px_rgba(0,0,0,0.12),0_0_20px_rgba(251,191,36,0.15)] transition-all duration-300 cursor-pointer"
+      className="group bg-white rounded-xl border-2 border-slate-700 overflow-hidden hover:border-amber-500 hover:shadow-[0_8px_30px_rgba(0,0,0,0.2),0_0_25px_rgba(251,191,36,0.25)] transition-all duration-300 cursor-pointer"
       onClick={onDetailClick}
     >
       {/* 이미지 썸네일 */}
@@ -449,7 +449,7 @@ export default function CollectionItemsPage() {
                 <thead className="bg-slate-50 border-b-2 border-slate-200">
                   <tr>
                     <th className="px-6 py-4 text-left text-sm font-bold text-slate-700">제목</th>
-                    <th className="px-6 py-4 text-center text-sm font-bold text-slate-700">작업</th>
+                    <th className="px-6 py-4 text-center text-sm font-bold text-slate-700">상세 보기</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
