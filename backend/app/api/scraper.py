@@ -446,14 +446,18 @@ async def bulk_scrape_from_csv_stream(
                     item = await create_item_service(item_data, db)
                     success_count += 1
 
-                    # 진행 상황 전송
+                    # 진행 상황 전송 (생성된 아이템 정보 포함)
                     progress = {
                         'type': 'progress',
                         'current': idx + 1,
                         'total': total,
                         'success': success_count,
                         'failed': failed_count,
-                        'progress': round(((idx + 1) / total) * 100, 2)
+                        'progress': round(((idx + 1) / total) * 100, 2),
+                        'item': {
+                            'id': str(item['_id']),
+                            'metadata': item['metadata']
+                        }
                     }
                     yield f"data: {json.dumps(progress)}\n\n"
 

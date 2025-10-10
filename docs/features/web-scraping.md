@@ -139,10 +139,14 @@ apply_mapping: true
 
 **응답**: Server-Sent Events (SSE)
 - `type: 'start'` - 시작 (total 포함)
-- `type: 'progress'` - 진행 중 (current, total, success, failed, progress %)
+- `type: 'progress'` - 진행 중 (current, total, success, failed, progress %, item 포함)
 - `type: 'error_item'` - 개별 아이템 실패
 - `type: 'complete'` - 완료 (total, success, failed)
 - `type: 'error'` - 전체 오류
+
+**완료 후 확인 단계**:
+- 등록된 아이템 미리보기 제공
+- "확인 및 닫기" 버튼으로 수동 종료
 
 #### CSV 파일 형식
 - **양식 다운로드**: 프론트엔드에서 제공
@@ -216,6 +220,13 @@ title,URL,purchase_date
 - **일반 사이트**: Open Graph, Twitter Card, JSON-LD 메타데이터만
 - **속도**: Playwright 사용으로 느림 (평균 2~3초/URL)
 - **안정성**: 사이트 구조 변경 시 파서 업데이트 필요
+
+## 성능 및 안정성
+
+### Timeout 설정
+- **페이지 로드 timeout**: 60초
+- **로드 전략**: `domcontentloaded` (빠른 로딩)
+- **일괄 등록과 단건 등록 동일**: 안정성 보장
 
 ---
 

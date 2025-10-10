@@ -47,8 +47,8 @@ class WebScraper:
         page = await self._browser.new_page()
 
         try:
-            # 페이지 로드 (최대 30초 대기)
-            await page.goto(url, wait_until="networkidle", timeout=30000)
+            # 페이지 로드 (최대 60초 대기, domcontentloaded로 변경하여 속도 개선)
+            await page.goto(url, wait_until="domcontentloaded", timeout=60000)
 
             # 페이지 소스 가져오기
             content = await page.content()

@@ -20,6 +20,11 @@ interface ProgressState {
   errors: string[];
 }
 
+interface ResultPreview {
+  id: string;
+  metadata: Record<string, any>;
+}
+
 export default function BulkImportModal({
   isOpen,
   onClose,
@@ -33,6 +38,8 @@ export default function BulkImportModal({
   const [showMappingConfirm, setShowMappingConfirm] = useState(false);
   const [savedMapping, setSavedMapping] = useState<Record<string, string> | null>(null);
   const [applyMapping, setApplyMapping] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [createdItems, setCreatedItems] = useState<ResultPreview[]>([]);
   const modalRef = useRef<HTMLDivElement>(null);
 
   // ESC 키로 닫기
@@ -156,6 +163,7 @@ export default function BulkImportModal({
                   progress: 0,
                   errors: [],
                 });
+                setCreatedItems([]);
               } else if (data.type === 'progress') {
                 setProgress({
                   total: data.total,
@@ -164,6 +172,10 @@ export default function BulkImportModal({
                   progress: data.progress,
                   errors,
                 });
+                // 생성된 아이템 추가
+                if (data.item) {
+                  setCreatedItems(prev => [...prev, data.item]);
+                }
               } else if (data.type === 'error_item') {
                 errors.push(data.message);
                 setProgress({
@@ -183,12 +195,9 @@ export default function BulkImportModal({
                 });
                 setResult(data);
 
-                // 성공 시 3초 후 자동 닫기
+                // 완료 시 확인 단계로 전환 (자동 닫기 제거)
                 if (data.success > 0) {
-                  setTimeout(() => {
-                    onComplete();
-                    handleClose();
-                  }, 3000);
+                  setShowConfirmation(true);
                 }
               } else if (data.type === 'error') {
                 throw new Error(data.message);
@@ -209,7 +218,14 @@ export default function BulkImportModal({
     setFile(null);
     setProgress(null);
     setResult(null);
+    setShowConfirmation(false);
+    setCreatedItems([]);
     onClose();
+  };
+
+  const handleConfirmAndClose = () => {
+    onComplete();
+    handleClose();
   };
 
   if (!isOpen) return null;
@@ -337,35 +353,86 @@ export default function BulkImportModal({
             </div>
           )}
 
-          {/* 버튼 */}
-          <div className="flex gap-3 pt-4 border-t-2 border-slate-200">
-            <button
-              type="button"
-              onClick={handleClose}
-              disabled={isProcessing}
-              className="flex-1 px-6 py-3 border-2 border-slate-300 rounded-lg font-semibold text-slate-700 hover:bg-slate-50 transition-all disabled:opacity-50"
-            >
-              {result ? '닫기' : '취소'}
-            </button>
-            <button
-              type="button"
-              onClick={handleUpload}
-              disabled={!file || isProcessing}
-              className="flex-1 px-6 py-3 bg-gradient-to-r from-slate-700 to-slate-800 text-amber-100 rounded-lg font-semibold hover:from-slate-600 hover:to-slate-700 hover:shadow-[0_0_20px_rgba(251,191,36,0.2)] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isProcessing ? (
-                <span className="flex items-center justify-center gap-2">
-                  <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+          {/* 확인 단계 */}
+          {showConfirmation && result && (
+            <div className="border-2 border-green-200 rounded-lg p-6 bg-green-50">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center">
+                  <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                   </svg>
-                  처리 중...
-                </span>
-              ) : (
-                '일괄 등록 시작'
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-green-900">등록 완료</h3>
+                  <p className="text-sm text-green-700">
+                    {result.success}개 아이템이 성공적으로 등록되었습니다
+                    {result.failed > 0 && ` (${result.failed}개 실패)`}
+                  </p>
+                </div>
+              </div>
+
+              {/* 생성된 아이템 미리보기 */}
+              {createdItems.length > 0 && (
+                <div className="mt-4">
+                  <p className="text-sm font-semibold text-green-900 mb-2">등록된 아이템:</p>
+                  <div className="max-h-48 overflow-y-auto space-y-2">
+                    {createdItems.map((item, idx) => (
+                      <div key={item.id} className="bg-white p-3 rounded-lg border border-green-200">
+                        <p className="text-sm font-medium text-slate-900">
+                          {idx + 1}. {item.metadata.title || item.metadata.name || '제목 없음'}
+                        </p>
+                        {item.metadata.author && (
+                          <p className="text-xs text-slate-600 mt-1">저자: {item.metadata.author}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
-            </button>
-          </div>
+
+              <div className="mt-6 flex gap-3">
+                <button
+                  type="button"
+                  onClick={handleConfirmAndClose}
+                  className="flex-1 px-6 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-all"
+                >
+                  확인 및 닫기
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* 버튼 */}
+          {!showConfirmation && (
+            <div className="flex gap-3 pt-4 border-t-2 border-slate-200">
+              <button
+                type="button"
+                onClick={handleClose}
+                disabled={isProcessing}
+                className="flex-1 px-6 py-3 border-2 border-slate-300 rounded-lg font-semibold text-slate-700 hover:bg-slate-50 transition-all disabled:opacity-50"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={handleUpload}
+                disabled={!file || isProcessing}
+                className="flex-1 px-6 py-3 bg-gradient-to-r from-slate-700 to-slate-800 text-amber-100 rounded-lg font-semibold hover:from-slate-600 hover:to-slate-700 hover:shadow-[0_0_20px_rgba(251,191,36,0.2)] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isProcessing ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    처리 중...
+                  </span>
+                ) : (
+                  '일괄 등록 시작'
+                )}
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
