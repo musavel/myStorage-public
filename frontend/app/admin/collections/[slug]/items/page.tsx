@@ -25,6 +25,8 @@ export default function ItemsManagePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortKey, setSortKey] = useState<string>('created_at');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -103,6 +105,54 @@ export default function ItemsManagePage() {
       alert('아이템 삭제에 실패했습니다.');
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedIds(new Set(filteredAndSortedItems.map(item => item._id)));
+    } else {
+      setSelectedIds(new Set());
+    }
+  };
+
+  const handleSelectItem = (itemId: string, checked: boolean) => {
+    const newSelected = new Set(selectedIds);
+    if (checked) {
+      newSelected.add(itemId);
+    } else {
+      newSelected.delete(itemId);
+    }
+    setSelectedIds(newSelected);
+  };
+
+  const handleBulkDelete = async () => {
+    if (!collection || selectedIds.size === 0) return;
+
+    if (!confirm(`선택한 ${selectedIds.size}개의 아이템을 삭제하시겠습니까?`)) {
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      const token = localStorage.getItem('auth_token');
+      const deletePromises = Array.from(selectedIds).map(itemId =>
+        fetch(`/api/items/${collection.id}/${itemId}`, {
+          method: 'DELETE',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
+      );
+
+      await Promise.all(deletePromises);
+      setSelectedIds(new Set());
+      await fetchItems();
+    } catch (error) {
+      console.error('Error deleting items:', error);
+      alert('아이템 삭제 중 오류가 발생했습니다.');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -246,6 +296,15 @@ export default function ItemsManagePage() {
               </div>
             </div>
             <div className="flex gap-3">
+              {selectedIds.size > 0 && (
+                <button
+                  onClick={handleBulkDelete}
+                  disabled={isDeleting}
+                  className="px-6 py-3 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  🗑️ 선택 삭제 ({selectedIds.size})
+                </button>
+              )}
               <button
                 onClick={() => setIsBulkImportOpen(true)}
                 className="px-6 py-3 border-2 border-slate-300 text-slate-700 rounded-lg font-semibold hover:border-amber-400 hover:bg-amber-50 transition-all"
@@ -332,6 +391,14 @@ export default function ItemsManagePage() {
               <table className="w-full table-auto">
                 <thead className="bg-slate-50 border-b-2 border-slate-200">
                   <tr>
+                    <th className="px-4 py-4 text-center">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.size > 0 && selectedIds.size === filteredAndSortedItems.length}
+                        onChange={(e) => handleSelectAll(e.target.checked)}
+                        className="w-4 h-4 text-amber-600 border-slate-300 rounded focus:ring-amber-500"
+                      />
+                    </th>
                     {fields.map((field) => (
                       <th
                         key={field.key}
@@ -358,6 +425,14 @@ export default function ItemsManagePage() {
                       key={item._id}
                       className="hover:bg-amber-50 transition-colors"
                     >
+                      <td className="px-4 py-4 text-center">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(item._id)}
+                          onChange={(e) => handleSelectItem(item._id, e.target.checked)}
+                          className="w-4 h-4 text-amber-600 border-slate-300 rounded focus:ring-amber-500"
+                        />
+                      </td>
                       {fields.map((field) => (
                         <td
                           key={field.key}

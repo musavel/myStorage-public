@@ -110,6 +110,7 @@ export default function BulkImportModal({
   const performUpload = async (useMapping: boolean) => {
     setIsProcessing(true);
     setProgress({ total: 0, completed: 0, failed: 0, progress: 0, errors: [] });
+    setApplyMapping(useMapping);
 
     try {
       const token = localStorage.getItem('auth_token');
@@ -118,7 +119,8 @@ export default function BulkImportModal({
       formData.append('collection_id', collection.id.toString());
       formData.append('apply_mapping', useMapping.toString());
 
-      const response = await fetch('/api/scraper/bulk-scrape-csv', {
+      // 스트리밍 엔드포인트 사용
+      const response = await fetch('/api/scraper/bulk-scrape-csv-stream', {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -127,26 +129,73 @@ export default function BulkImportModal({
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail || 'CSV 처리에 실패했습니다.');
+        throw new Error('CSV 업로드 실패');
       }
 
-      const data = await response.json();
-      setResult(data);
-      setProgress({
-        total: data.total,
-        completed: data.success,
-        failed: data.failed,
-        progress: 100,
-        errors: data.errors || [],
-      });
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      const errors: string[] = [];
 
-      // 성공 시 3초 후 자동 닫기
-      if (data.success > 0) {
-        setTimeout(() => {
-          onComplete();
-          handleClose();
-        }, 3000);
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value);
+          const lines = chunk.split('\n');
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const data = JSON.parse(line.slice(6));
+
+              if (data.type === 'start') {
+                setProgress({
+                  total: data.total,
+                  completed: 0,
+                  failed: 0,
+                  progress: 0,
+                  errors: [],
+                });
+              } else if (data.type === 'progress') {
+                setProgress({
+                  total: data.total,
+                  completed: data.success,
+                  failed: data.failed,
+                  progress: data.progress,
+                  errors,
+                });
+              } else if (data.type === 'error_item') {
+                errors.push(data.message);
+                setProgress({
+                  total: data.total,
+                  completed: data.success,
+                  failed: data.failed,
+                  progress: data.progress,
+                  errors: [...errors],
+                });
+              } else if (data.type === 'complete') {
+                setProgress({
+                  total: data.total,
+                  completed: data.success,
+                  failed: data.failed,
+                  progress: 100,
+                  errors,
+                });
+                setResult(data);
+
+                // 성공 시 3초 후 자동 닫기
+                if (data.success > 0) {
+                  setTimeout(() => {
+                    onComplete();
+                    handleClose();
+                  }, 3000);
+                }
+              } else if (data.type === 'error') {
+                throw new Error(data.message);
+              }
+            }
+          }
+        }
       }
     } catch (error) {
       console.error('Bulk import error:', error);

@@ -1,11 +1,14 @@
 """스크래핑 API 엔드포인트"""
 from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Form
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from typing import List
 import csv
 import io
+import json
 import logging
 import traceback
+import asyncio
 
 from ..db import get_db
 from ..core.auth import require_owner
@@ -353,3 +356,135 @@ async def bulk_scrape_from_csv(
         raise HTTPException(status_code=400, detail="CSV 파일 인코딩 오류 (UTF-8 형식이어야 합니다)")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"CSV 처리 실패: {str(e)}")
+
+
+@router.post("/bulk-scrape-csv-stream")
+async def bulk_scrape_from_csv_stream(
+    file: UploadFile = File(...),
+    collection_id: int = Form(...),
+    apply_mapping: bool = Form(False),
+    db: Session = Depends(get_db),
+    email: str = Depends(require_owner),
+):
+    """
+    CSV 파일에서 URL 목록을 읽어 일괄 스크래핑 (스트리밍)
+    실시간 진행 상황을 Server-Sent Events로 전송
+    """
+    async def generate():
+        try:
+            if not file.filename.endswith('.csv'):
+                yield f"data: {json.dumps({'type': 'error', 'message': 'CSV 파일만 업로드 가능합니다.'})}\n\n"
+                return
+
+            # CSV 파일 읽기
+            contents = await file.read()
+            decoded = contents.decode('utf-8')
+            csv_reader = csv.DictReader(io.StringIO(decoded))
+
+            # URL과 추가 데이터 수집
+            urls = []
+            additional_data = []
+
+            for row in csv_reader:
+                url = None
+                for key in row.keys():
+                    if key.lower() in ['url', 'link', '주소']:
+                        url = row[key].strip()
+                        break
+
+                if url:
+                    urls.append(url)
+                    extra = {}
+                    for key, value in row.items():
+                        if key.lower() not in ['url', 'link', '주소', 'title'] and value.strip():
+                            extra[key] = value.strip()
+                    additional_data.append(extra)
+
+            if not urls:
+                yield f"data: {json.dumps({'type': 'error', 'message': 'CSV 파일에 URL이 없습니다.'})}\n\n"
+                return
+
+            total = len(urls)
+            yield f"data: {json.dumps({'type': 'start', 'total': total})}\n\n"
+
+            # 매핑 설정 가져오기
+            mapping = None
+            ignore_unmapped = False
+            if apply_mapping:
+                stmt = select(Collection).where(Collection.id == collection_id)
+                result = db.execute(stmt)
+                collection = result.scalar_one_or_none()
+
+                if collection and collection.field_mapping:
+                    mapping_config = collection.field_mapping
+                    if isinstance(mapping_config, dict):
+                        mapping = mapping_config.get("mapping", {})
+                        ignore_unmapped = mapping_config.get("ignore_unmapped", False)
+
+            success_count = 0
+            failed_count = 0
+
+            # 하나씩 처리
+            for idx, url in enumerate(urls):
+                try:
+                    # 스크래핑
+                    metadata = await scrape_url(url)
+
+                    # CSV 추가 데이터 병합
+                    if idx < len(additional_data):
+                        metadata.update(additional_data[idx])
+
+                    # 매핑 적용
+                    if mapping:
+                        metadata = apply_field_mapping(metadata, mapping, ignore_unmapped)
+
+                    # 아이템 생성
+                    item_data = ItemCreate(
+                        collection_id=collection_id,
+                        metadata=metadata
+                    )
+                    item = await create_item_service(item_data, db)
+                    success_count += 1
+
+                    # 진행 상황 전송
+                    progress = {
+                        'type': 'progress',
+                        'current': idx + 1,
+                        'total': total,
+                        'success': success_count,
+                        'failed': failed_count,
+                        'progress': round(((idx + 1) / total) * 100, 2)
+                    }
+                    yield f"data: {json.dumps(progress)}\n\n"
+
+                except Exception as e:
+                    failed_count += 1
+                    error_msg = f"행 {idx + 1}: {str(e)}"
+
+                    # 에러 전송
+                    error_data = {
+                        'type': 'error_item',
+                        'index': idx + 1,
+                        'message': error_msg,
+                        'current': idx + 1,
+                        'total': total,
+                        'success': success_count,
+                        'failed': failed_count,
+                        'progress': round(((idx + 1) / total) * 100, 2)
+                    }
+                    yield f"data: {json.dumps(error_data)}\n\n"
+
+            # 완료
+            complete_data = {
+                'type': 'complete',
+                'total': total,
+                'success': success_count,
+                'failed': failed_count
+            }
+            yield f"data: {json.dumps(complete_data)}\n\n"
+
+        except Exception as e:
+            logger.error(f"스트리밍 처리 실패: {str(e)}\n{traceback.format_exc()}")
+            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+
+    return StreamingResponse(generate(), media_type="text/event-stream")

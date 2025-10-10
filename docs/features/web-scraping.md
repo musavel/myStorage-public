@@ -115,7 +115,7 @@ Authorization: Bearer {JWT}
 }
 ```
 
-### CSV 일괄 등록
+### CSV 일괄 등록 (기본)
 ```bash
 POST /api/scraper/bulk-scrape-csv
 Authorization: Bearer {JWT}
@@ -125,6 +125,24 @@ file: CSV 파일
 collection_id: 1
 apply_mapping: true
 ```
+
+### CSV 일괄 등록 (스트리밍)
+```bash
+POST /api/scraper/bulk-scrape-csv-stream
+Authorization: Bearer {JWT}
+Content-Type: multipart/form-data
+
+file: CSV 파일
+collection_id: 1
+apply_mapping: true
+```
+
+**응답**: Server-Sent Events (SSE)
+- `type: 'start'` - 시작 (total 포함)
+- `type: 'progress'` - 진행 중 (current, total, success, failed, progress %)
+- `type: 'error_item'` - 개별 아이템 실패
+- `type: 'complete'` - 완료 (total, success, failed)
+- `type: 'error'` - 전체 오류
 
 #### CSV 파일 형식
 - **양식 다운로드**: 프론트엔드에서 제공
