@@ -58,3 +58,21 @@ def require_owner(current_user: str = Depends(get_current_user)) -> str:
             detail="소유자만 접근 가능합니다",
         )
     return current_user
+
+
+def get_current_user_optional(credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))) -> Optional[str]:
+    """현재 로그인한 사용자 이메일 가져오기 (선택적 - 로그인 안 해도 됨)"""
+    if credentials is None:
+        return None
+    try:
+        token = credentials.credentials
+        payload = verify_token(token)
+        email: str = payload.get("email")
+        return email
+    except:
+        return None
+
+
+def is_owner(current_user: Optional[str] = Depends(get_current_user_optional)) -> bool:
+    """현재 사용자가 Owner인지 확인"""
+    return current_user == settings.OWNER_EMAIL if current_user else False

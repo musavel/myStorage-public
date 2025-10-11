@@ -5,7 +5,7 @@ from typing import List
 
 from backend.app.schemas.item import ItemCreate, ItemUpdate, ItemResponse
 from backend.app.db import get_db
-from backend.app.core.auth import require_owner
+from backend.app.core.auth import require_owner, is_owner
 from backend.app.services.item import (
     get_all_items,
     get_item_by_id,
@@ -20,20 +20,22 @@ router = APIRouter(prefix="/items", tags=["items"])
 @router.get("", response_model=List[ItemResponse])
 async def get_items_endpoint(
     collection_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user_is_owner: bool = Depends(is_owner)
 ):
-    """아이템 목록 조회 (Public)"""
-    return await get_all_items(collection_id, db)
+    """아이템 목록 조회 (Owner만 비공개 포함 조회 가능)"""
+    return await get_all_items(collection_id, db, is_owner=user_is_owner)
 
 
 @router.get("/{collection_id}/{item_id}", response_model=ItemResponse)
 async def get_item_endpoint(
     collection_id: int,
     item_id: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    user_is_owner: bool = Depends(is_owner)
 ):
-    """아이템 상세 조회 (Public)"""
-    return await get_item_by_id(collection_id, item_id, db)
+    """아이템 상세 조회 (Owner만 비공개 포함 조회 가능)"""
+    return await get_item_by_id(collection_id, item_id, db, is_owner=user_is_owner)
 
 
 @router.post("", response_model=ItemResponse, status_code=status.HTTP_201_CREATED)

@@ -32,19 +32,21 @@ async def get_mongo_collection_name(collection_id: int, db: Session) -> str:
     return collection.mongo_collection
 
 
-async def get_all_items(collection_id: int, db: Session) -> List[Dict[str, Any]]:
+async def get_all_items(collection_id: int, db: Session, is_owner: bool = False) -> List[Dict[str, Any]]:
     """아이템 목록 조회"""
     mongo_collection_name = await get_mongo_collection_name(collection_id, db)
 
     mongo_db = get_database()
-    items = await mongo_db[mongo_collection_name].find().to_list(1000)
+    query = {} if is_owner else {"is_public": True}
+    items = await mongo_db[mongo_collection_name].find(query).to_list(1000)
     return [item_helper(item) for item in items]
 
 
 async def get_item_by_id(
     collection_id: int,
     item_id: str,
-    db: Session
+    db: Session,
+    is_owner: bool = False
 ) -> Dict[str, Any]:
     """아이템 상세 조회"""
     mongo_collection_name = await get_mongo_collection_name(collection_id, db)
@@ -53,7 +55,10 @@ async def get_item_by_id(
         raise HTTPException(status_code=400, detail="Invalid item ID")
 
     mongo_db = get_database()
-    item = await mongo_db[mongo_collection_name].find_one({"_id": ObjectId(item_id)})
+    query = {"_id": ObjectId(item_id)}
+    if not is_owner:
+        query["is_public"] = True
+    item = await mongo_db[mongo_collection_name].find_one(query)
 
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")

@@ -22,6 +22,7 @@ export interface Collection {
   slug: string;
   icon?: string;
   description?: string;
+  is_public: boolean;
   mongo_collection?: string;
   field_definitions?: any;
   created_at: string;
@@ -31,6 +32,7 @@ export interface Collection {
 export interface Item {
   _id: string;
   collection_id: number;
+  is_public: boolean;
   metadata: Record<string, any>;
   created_at: string;
   updated_at?: string;
@@ -38,7 +40,7 @@ export interface Item {
 
 // Collections
 export async function getCollections(): Promise<Collection[]> {
-  const res = await fetch(`${API_URL}/api/collections`, { cache: 'no-store' });
+  const res = await fetch(`${API_URL}/api/collections`, { cache: 'no-store' }); // 백엔드에서 자동으로 공개 항목만 조회
   if (!res.ok) throw new Error('Failed to fetch collections');
   return res.json();
 }

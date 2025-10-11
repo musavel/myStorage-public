@@ -43,8 +43,19 @@ export default function ItemsManagePage() {
 
   const fetchCollection = async () => {
     try {
-      const data = await getCollectionBySlug(slug);
-      setCollection(data);
+      const token = localStorage.getItem('auth_token');
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const res = await fetch(`${API_URL}/api/collections`, {
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      const collections = await res.json();
+      const collection = collections.find((c: any) => c.slug === slug);
+      if (!collection) {
+        throw new Error('Collection not found');
+      }
+      setCollection(collection);
     } catch (error) {
       console.error('Failed to fetch collection:', error);
       alert('컬렉션을 찾을 수 없습니다.');
@@ -56,7 +67,13 @@ export default function ItemsManagePage() {
     if (!collection) return;
 
     try {
-      const res = await fetch(`/api/items?collection_id=${collection.id}`);
+      const token = localStorage.getItem('auth_token');
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const res = await fetch(`${API_URL}/api/items?collection_id=${collection.id}`, {
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
       const data = await res.json();
       setItems(data);
     } catch (error) {
@@ -89,7 +106,8 @@ export default function ItemsManagePage() {
     setDeletingId(itemId);
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`/api/items/${collection.id}/${itemId}`, {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const response = await fetch(`${API_URL}/api/items/${collection.id}/${itemId}`, {
         method: 'DELETE',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -137,8 +155,9 @@ export default function ItemsManagePage() {
     setIsDeleting(true);
     try {
       const token = localStorage.getItem('auth_token');
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
       const deletePromises = Array.from(selectedIds).map(itemId =>
-        fetch(`/api/items/${collection.id}/${itemId}`, {
+        fetch(`${API_URL}/api/items/${collection.id}/${itemId}`, {
           method: 'DELETE',
           headers: {
             Authorization: `Bearer ${token}`,

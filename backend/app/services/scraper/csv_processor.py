@@ -172,17 +172,10 @@ async def bulk_scrape_csv_stream(
             yield f"data: {json.dumps(progress)}\n\n"
 
         except Exception as e:
-            error_str = str(e).lower()
+            error_str = str(e)
 
-            # Block 감지 (timeout, 403, rate limit, 제목 없음 등)
-            is_blocked = (
-                'timeout' in error_str or
-                '403' in error_str or
-                'blocked' in error_str or
-                'rate limit' in error_str or
-                '제목을 찾을 수 없습니다' in str(e) or
-                '페이지 로딩이 실패' in str(e)
-            )
+            # Block 감지: "제목을 찾을 수 없습니다" 에러만 차단으로 간주
+            is_blocked = '제목을 찾을 수 없습니다' in error_str
 
             if is_blocked:
                 # 현재 실패한 것 + 남은 URL 모두 수집 (원본 row 데이터 포함)

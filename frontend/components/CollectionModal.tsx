@@ -33,6 +33,7 @@ export default function CollectionModal({
   const [slug, setSlug] = useState('');
   const [icon, setIcon] = useState('📦');
   const [description, setDescription] = useState('');
+  const [isPublic, setIsPublic] = useState(true);
   const [fieldDefinitions, setFieldDefinitions] = useState<FieldDefinition[]>([]);
   const [showAISuggestion, setShowAISuggestion] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -65,6 +66,7 @@ export default function CollectionModal({
       setSlug(collection.slug);
       setIcon(collection.icon || '📦');
       setDescription(collection.description || '');
+      setIsPublic(collection.is_public !== undefined ? collection.is_public : true);
 
       // field_definitions를 배열로 변환
       if (collection.field_definitions && collection.field_definitions.fields) {
@@ -78,6 +80,7 @@ export default function CollectionModal({
       setSlug('');
       setIcon('📦');
       setDescription('');
+      setIsPublic(true);
       setFieldDefinitions([
         {
           key: 'title',
@@ -134,6 +137,7 @@ export default function CollectionModal({
         slug: slug.trim() || undefined,  // 비어있으면 undefined (백엔드에서 자동 생성)
         icon,
         description,
+        is_public: isPublic,
         field_definitions: fieldDefinitions.length > 0 ? { fields: fieldDefinitions } : undefined,
       };
 
@@ -372,6 +376,31 @@ export default function CollectionModal({
               className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-200 transition-all resize-none"
               placeholder="컬렉션에 대한 설명을 입력하세요"
             />
+          </div>
+
+          {/* Public/Private Toggle */}
+          <div className="flex items-center justify-between p-4 bg-gradient-to-r from-slate-50 to-stone-50 border-2 border-slate-200 rounded-xl">
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-1">
+                공개 여부
+              </label>
+              <p className="text-xs text-slate-500">
+                {isPublic ? '이 컬렉션이 공개 페이지에 표시됩니다' : '관리자만 볼 수 있습니다'}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsPublic(!isPublic)}
+              className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${
+                isPublic ? 'bg-amber-500' : 'bg-slate-300'
+              }`}
+            >
+              <span
+                className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${
+                  isPublic ? 'translate-x-7' : 'translate-x-1'
+                }`}
+              />
+            </button>
           </div>
 
           {/* Field Definition Editor */}

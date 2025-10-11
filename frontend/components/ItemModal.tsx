@@ -23,6 +23,7 @@ export default function ItemModal({
   item,
 }: ItemModalProps) {
   const [metadata, setMetadata] = useState<Record<string, any>>({});
+  const [isPublic, setIsPublic] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [inputMode, setInputMode] = useState<InputMode>('manual');
@@ -57,10 +58,12 @@ export default function ItemModal({
   useEffect(() => {
     if (item) {
       setMetadata(item.metadata || {});
+      setIsPublic(item.is_public !== undefined ? item.is_public : true);
       setInputMode('manual');
     } else {
       // 새 아이템: 빈 객체로 초기화
       setMetadata({});
+      setIsPublic(true);
       setInputMode('manual');
       setUrlInput('');
     }
@@ -207,7 +210,7 @@ export default function ItemModal({
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ metadata }),
+          body: JSON.stringify({ metadata, is_public: isPublic }),
         });
       } else {
         // 생성
@@ -219,6 +222,7 @@ export default function ItemModal({
           },
           body: JSON.stringify({
             collection_id: collection.id,
+            is_public: isPublic,
             metadata,
           }),
         });
@@ -406,6 +410,31 @@ export default function ItemModal({
               )}
             </div>
           )}
+
+          {/* Public/Private Toggle */}
+          <div className="flex items-center justify-between p-4 bg-gradient-to-r from-slate-50 to-stone-50 border-2 border-slate-200 rounded-lg">
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-1">
+                공개 여부
+              </label>
+              <p className="text-xs text-slate-500">
+                {isPublic ? '이 아이템이 공개 페이지에 표시됩니다' : '관리자만 볼 수 있습니다'}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsPublic(!isPublic)}
+              className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors ${
+                isPublic ? 'bg-amber-500' : 'bg-slate-300'
+              }`}
+            >
+              <span
+                className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${
+                  isPublic ? 'translate-x-7' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
 
           {fields.length === 0 ? (
             <div className="text-center py-8 text-slate-500">

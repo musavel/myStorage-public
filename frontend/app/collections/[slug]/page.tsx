@@ -217,7 +217,7 @@ export default function CollectionItemsPage() {
     if (!collection) return;
 
     try {
-      const res = await fetch(`/api/items?collection_id=${collection.id}`);
+      const res = await fetch(`/api/items?collection_id=${collection.id}`); // 백엔드에서 자동으로 공개 항목만 조회
       const data = await res.json();
       setItems(data);
     } catch (error) {

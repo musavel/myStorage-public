@@ -19,8 +19,7 @@ JavaScript 렌더링이 필요한 페이지도 처리 가능합니다.
 | `publisher` | string | 출판사 | "대원씨아이" |
 | `publication_date` | string | 출판일 (YYYY-MM-DD) | "2021-10-05" |
 | `description` | string | 도서 설명 | "유쾌한 해적들의 신나는 모험 이야기..." |
-| `image` | string (URL) | 표지 이미지 URL | "https://contents.kyobobook.co.kr/..." |
-| `image_url` | string (URL) | 표지 이미지 URL (image와 동일) | (자동 추가) |
+| `image_url` | string (URL) | 표지 이미지 URL | "https://contents.kyobobook.co.kr/..." |
 | `isbn` | string | ISBN (13자리 우선, 10자리 fallback) | "9791136287489" |
 | `price` | integer | 판매 가격 (원) | 4950 |
 | `page_count` | integer | 쪽수 | 207 |
@@ -56,8 +55,7 @@ JavaScript 렌더링이 필요한 페이지도 처리 가능합니다.
 | `publisher` | string | 출판사 | "대원씨아이(만화)" |
 | `publication_date` | string | 출판일 (YYYY-MM-DD) | "2008-03-18" |
 | `description` | string | 도서 설명 | "해적왕의 꿈을 키우는 루피는..." |
-| `image` | string (URL) | 표지 이미지 URL | "https://image.aladin.co.kr/..." |
-| `image_url` | string (URL) | 표지 이미지 URL (image와 동일) | (자동 추가) |
+| `image_url` | string (URL) | 표지 이미지 URL | "https://image.aladin.co.kr/..." |
 | `isbn` | string | ISBN (13자리 우선, 10자리 fallback) | "9791136287489" |
 | `price` | integer | 판매 가격 (원, 할인가 기준) | 4950 |
 | `page_count` | integer | 쪽수 | 208 |
@@ -83,14 +81,14 @@ JavaScript 렌더링이 필요한 페이지도 처리 가능합니다.
 모든 사이트에서 기본적으로 시도:
 - `og:title` → `title`
 - `og:description` → `description`
-- `og:image` → `image`
+- `og:image` → `image_url` (내부적으로 `image`로 추출 후 `image_url`로 변환)
 - `og:type` → `type`
 
 ### Twitter Card 메타 태그
 Open Graph가 없을 경우 fallback:
 - `twitter:title` → `title`
 - `twitter:description` → `description`
-- `twitter:image` → `image`
+- `twitter:image` → `image_url` (내부적으로 `image`로 추출 후 `image_url`로 변환)
 
 ### JSON-LD 구조화된 데이터
 `<script type="application/ld+json">` 파싱:
@@ -197,17 +195,6 @@ result = await scrape_url("https://product.kyobobook.co.kr/detail/S000001713046"
 print(result['title'])  # "원피스 1: 동터오는 모험 시대"
 ```
 
-#### 배치 스크래핑
-```python
-from backend.app.services.scraper.web_scraper import scrape_urls
-
-urls = [
-    "https://product.kyobobook.co.kr/detail/S000001713046",
-    "https://www.aladin.co.kr/shop/wproduct.aspx?ItemId=281358410"
-]
-results = await scrape_urls(urls)
-```
-
 #### Context Manager 패턴
 ```python
 async with WebScraper() as scraper:
@@ -287,16 +274,22 @@ DELETE /api/scraper/delete-mapping/{collection_id}
 - BeautifulSoup4: 4.12.0+
 - Python: 3.13+
 
-마지막 업데이트: 2025-10-09
+마지막 업데이트: 2025-10-12
 
 ---
 
-## 최근 업데이트 (2025-10-09)
+## 최근 업데이트
 
-### 새로운 필드
+### 2025-10-12
+- ✅ **이미지 필드 통일화**: 모든 스크래핑 결과가 `image_url`로 저장 (기존 `image` 필드 제거)
+- ✅ **에러 처리 개선**: 차단 에러와 일반 에러 명확히 구분
+- ✅ **CSV 재등록 안정성**: remaining_urls CSV의 메타데이터 보존
+- ✅ **코드 정리**: 사용하지 않는 `scrape_urls()`, `bulk_scrape_and_create()` 함수 제거
+
+### 2025-10-09
+
 - ✅ `pages` (쪽수): 교보문고, 알라딘 모두 지원
 - ✅ `category` (카테고리): 교보문고만 지원 (breadcrumb 기반)
-- ✅ `image_url`: `image` 필드와 동일하게 자동 추가되며, Public 페이지에서 우선 사용
 
 ### 필드 매핑 시스템 고도화
 - ✅ 매핑 확인 UI (MappingConfirmationModal)

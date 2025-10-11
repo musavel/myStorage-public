@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime
+from sqlalchemy import Column, Integer, String, DateTime, Boolean
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -15,6 +15,7 @@ class Collection(Base):
     mongo_collection = Column(String, unique=True, nullable=True)  # MongoDB 컬렉션명 (예: "items_books")
     icon = Column(String, nullable=True)  # 아이콘 이름 또는 이모지
     description = Column(String, nullable=True)  # 컬렉션 설명
+    is_public = Column(Boolean, default=True, nullable=False, server_default='true')  # 공개 여부
     field_definitions = Column(JSONB, nullable=True)  # 메타데이터 필드 정의
     field_mapping = Column(JSONB, nullable=True)  # 스크래핑 필드 매핑 설정 {"mapping": {...}, "ignore_unmapped": bool}
     created_at = Column(DateTime(timezone=True), server_default=func.now())

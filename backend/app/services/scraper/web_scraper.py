@@ -2,7 +2,6 @@
 웹 페이지 스크래핑 서비스
 Playwright를 사용하여 JavaScript 렌더링된 페이지도 크롤링
 """
-import asyncio
 import logging
 from typing import Optional, Dict, Any
 from playwright.async_api import async_playwright, Browser, Page
@@ -26,6 +25,7 @@ class WebScraper:
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Context manager 종료"""
+        _ = (exc_type, exc_val, exc_tb)  # 사용되지 않음
         if self._browser:
             await self._browser.close()
         if self.playwright:
@@ -63,9 +63,24 @@ class WebScraper:
             metadata = await self._extract_metadata(soup, page)
             metadata['source_url'] = url
 
+            # image를 image_url로 변경 (프론트엔드 호환성)
+            if 'image' in metadata and metadata['image']:
+                metadata['image_url'] = metadata.pop('image')
+
             # 필수 필드 검증
             if not metadata.get('title') or not metadata['title'].strip():
                 raise ValueError(f"페이지에서 제목을 찾을 수 없습니다. 페이지 로딩이 실패했거나 차단되었을 수 있습니다.")
+
+            # 에러 페이지 감지 (title에 HTTP 에러 코드가 있는 경우)
+            title_lower = metadata['title'].lower()
+            error_patterns = [
+                '400 bad request', '401 unauthorized', '403 forbidden', '404 not found',
+                '500 internal server error', '502 bad gateway', '503 service unavailable',
+                'page not found', '접근이 거부', '페이지를 찾을 수 없', '요청한 페이지를 찾을 수 없'
+            ]
+            # 정확한 에러 키워드만 (error는 너무 광범위하므로 제외)
+            if any(pattern in title_lower for pattern in error_patterns):
+                raise ValueError(f"페이지 로딩 실패: {metadata['title']}")
 
             return metadata
 
@@ -173,6 +188,7 @@ class WebScraper:
 
     async def _parse_kyobo(self, soup: BeautifulSoup, page: Page, existing_metadata: Dict[str, Any]) -> Dict[str, Any]:
         """교보문고 페이지 특화 파싱"""
+        _ = soup  # 현재 사용하지 않음 (page.query_selector 사용)
         metadata = {}
 
         try:
@@ -281,6 +297,7 @@ class WebScraper:
 
     async def _parse_aladin(self, soup: BeautifulSoup, page: Page) -> Dict[str, Any]:
         """알라딘 페이지 특화 파싱"""
+        _ = soup  # 현재 사용하지 않음 (page.query_selector 사용)
         metadata = {}
 
         try:
@@ -385,21 +402,6 @@ async def scrape_url(url: str) -> Dict[str, Any]:
     """
     async with WebScraper() as scraper:
         return await scraper.scrape_url(url)
-
-
-async def scrape_urls(urls: list[str]) -> list[Dict[str, Any]]:
-    """
-    여러 URL 스크래핑 (배치 처리)
-
-    Args:
-        urls: 크롤링할 URL 리스트
-
-    Returns:
-        메타데이터 딕셔너리 리스트
-    """
-    async with WebScraper() as scraper:
-        tasks = [scraper.scrape_url(url) for url in urls]
-        return await asyncio.gather(*tasks, return_exceptions=True)
 
 
 def apply_field_mapping(

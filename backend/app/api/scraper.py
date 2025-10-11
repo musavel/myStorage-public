@@ -82,6 +82,19 @@ async def scrape_single_url_endpoint(
             metadata=metadata,
             source_url=str(request.url),
         )
+    except ValueError as e:
+        error_msg = str(e)
+        logger.error(f"스크래핑 실패: {error_msg}\n{traceback.format_exc()}")
+
+        # 제목을 찾을 수 없는 경우 (차단 가능성)
+        if "제목을 찾을 수 없습니다" in error_msg:
+            raise HTTPException(
+                status_code=400,
+                detail="페이지가 차단되었거나 접근할 수 없습니다. 잠시 후 다시 시도해주세요."
+            )
+
+        # 기타 ValueError
+        raise HTTPException(status_code=400, detail=error_msg)
     except Exception as e:
         logger.error(f"스크래핑 실패: {str(e)}\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"스크래핑 실패: {str(e)}")

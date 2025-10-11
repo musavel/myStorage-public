@@ -10,8 +10,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'collection_id is required' }, { status: 400 });
   }
 
+  const authHeader = request.headers.get('authorization');
+
   const response = await fetch(`${API_URL_INTERNAL}/api/items?collection_id=${collectionId}`, {
     cache: 'no-store',
+    headers: {
+      ...(authHeader ? { 'Authorization': authHeader } : {}),
+    },
   });
 
   const data = await response.json();

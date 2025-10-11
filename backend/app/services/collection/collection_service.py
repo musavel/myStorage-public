@@ -24,9 +24,12 @@ def generate_mongo_collection_name(slug: str) -> str:
     return f"items_{slug_hash}"
 
 
-async def get_all_collections(db: Session) -> List[Collection]:
+async def get_all_collections(db: Session, is_owner: bool = False) -> List[Collection]:
     """모든 컬렉션 조회"""
-    collections = db.execute(select(Collection)).scalars().all()
+    query = select(Collection)
+    if not is_owner:
+        query = query.filter(Collection.is_public == True)
+    collections = db.execute(query).scalars().all()
     return list(collections)
 
 

@@ -7,6 +7,7 @@ class ItemBase(BaseModel):
     """Item 기본 스키마"""
     collection_id: int
     title: Optional[str] = None  # 메타데이터에서 자동 추출 가능
+    is_public: bool = True  # 공개 여부
     metadata: Dict[str, Any] = Field(default_factory=dict)  # 동적 메타데이터
 
 
@@ -18,6 +19,7 @@ class ItemCreate(ItemBase):
 class ItemUpdate(BaseModel):
     """Item 수정 스키마"""
     title: Optional[str] = None
+    is_public: Optional[bool] = None
     metadata: Optional[Dict[str, Any]] = None
 
 

@@ -22,7 +22,13 @@ export default function CollectionsManagePage() {
 
   const fetchCollections = async () => {
     try {
-      const res = await fetch('/api/collections');
+      const token = localStorage.getItem('auth_token');
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const res = await fetch(`${API_URL}/api/collections`, {
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
       const data = await res.json();
       setCollections(data);
     } catch (error) {
@@ -54,7 +60,8 @@ export default function CollectionsManagePage() {
     setDeletingId(id);
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await fetch(`/api/collections/${id}`, {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const response = await fetch(`${API_URL}/api/collections/${id}`, {
         method: 'DELETE',
         headers: {
           Authorization: `Bearer ${token}`,

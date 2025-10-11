@@ -2,10 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const API_URL = process.env.API_URL_INTERNAL || 'http://backend:8000';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const authHeader = request.headers.get('authorization');
+
     const response = await fetch(`${API_URL}/api/collections`, {
       cache: 'no-store',
+      headers: {
+        ...(authHeader ? { 'Authorization': authHeader } : {}),
+      },
     });
 
     if (!response.ok) {

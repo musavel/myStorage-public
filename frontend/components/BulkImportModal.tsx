@@ -214,9 +214,8 @@ export default function BulkImportModal({
                   success: data.success,
                   failed: data.failed
                 });
-                if (data.success > 0) {
-                  setShowConfirmation(true);
-                }
+                // Block 발생 시 항상 확인 단계로 전환 (성공 수와 무관)
+                setShowConfirmation(true);
               } else if (data.type === 'complete') {
                 console.log('[COMPLETE] 완료 이벤트:', data);
 
@@ -295,25 +294,25 @@ export default function BulkImportModal({
 
     // CSV 생성 (UTF-8 BOM 포함)
     const csvRows = ['title,URL,purchase_date'];
-    remainingUrls.forEach(item => {
-      // 원본 row 데이터가 있으면 그대로 사용, 없으면 빈 필드
-      if (item.original_row) {
-        const row = item.original_row;
-        const title = row.title || '';
-        const url = item.url;
-        const purchaseDate = row.purchase_date || '';
-        // CSV 형식으로 이스케이프 (쉼표나 따옴표가 있을 수 있음)
-        const escapeCsv = (str: string) => {
-          if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-            return `"${str.replace(/"/g, '""')}"`;
-          }
-          return str;
-        };
-        csvRows.push(`${escapeCsv(title)},${escapeCsv(url)},${escapeCsv(purchaseDate)}`);
-      } else {
-        // 원본 데이터가 없으면 URL만
-        csvRows.push(`,${item.url},`);
+
+    // CSV 형식으로 이스케이프 (쉼표나 따옴표가 있을 수 있음)
+    const escapeCsv = (str: string) => {
+      if (!str) return '';  // null, undefined, 빈 문자열 처리
+      const stringValue = String(str);
+      if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+        return `"${stringValue.replace(/"/g, '""')}"`;
       }
+      return stringValue;
+    };
+
+    remainingUrls.forEach(item => {
+      // 원본 row 데이터가 있으면 그대로 사용
+      const row = item.original_row || {};
+      const title = row.title || row.Title || '';  // 대소문자 변형 대응
+      const url = item.url;
+      const purchaseDate = row.purchase_date || row.Purchase_date || '';
+
+      csvRows.push(`${escapeCsv(title)},${escapeCsv(url)},${escapeCsv(purchaseDate)}`);
     });
     const csvContent = '\uFEFF' + csvRows.join('\n');
 
@@ -474,17 +473,23 @@ export default function BulkImportModal({
 
           {/* 확인 단계 */}
           {showConfirmation && result && (
-            <div className="border-2 border-green-200 rounded-lg p-6 bg-green-50">
+            <div className={`border-2 rounded-lg p-6 ${isBlocked ? 'border-amber-200 bg-amber-50' : 'border-green-200 bg-green-50'}`}>
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center">
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center ${isBlocked ? 'bg-amber-500' : 'bg-green-500'}`}>
                   <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                    {isBlocked ? (
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    ) : (
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                    )}
                   </svg>
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-green-900">등록 완료</h3>
-                  <p className="text-sm text-green-700">
-                    {result.success}개 아이템이 성공적으로 등록되었습니다
+                  <h3 className={`text-xl font-bold ${isBlocked ? 'text-amber-900' : 'text-green-900'}`}>
+                    {isBlocked ? '처리 중단됨' : '등록 완료'}
+                  </h3>
+                  <p className={`text-sm ${isBlocked ? 'text-amber-700' : 'text-green-700'}`}>
+                    {result.success > 0 ? `${result.success}개 아이템이 성공적으로 등록되었습니다` : '처리된 아이템이 없습니다'}
                     {result.failed > 0 && ` (${result.failed}개 실패)`}
                   </p>
                 </div>

@@ -9,6 +9,7 @@ class CollectionBase(BaseModel):
     slug: str
     icon: Optional[str] = None
     description: Optional[str] = None
+    is_public: bool = True
 
 
 class CollectionCreate(BaseModel):
@@ -17,6 +18,7 @@ class CollectionCreate(BaseModel):
     slug: Optional[str] = None  # 비워두면 AI가 자동 생성
     icon: Optional[str] = None
     description: Optional[str] = None
+    is_public: bool = True
     field_definitions: Optional[Dict[str, Any]] = None
 
 
@@ -26,6 +28,7 @@ class CollectionUpdate(BaseModel):
     slug: Optional[str] = None
     icon: Optional[str] = None
     description: Optional[str] = None
+    is_public: Optional[bool] = None
     field_definitions: Optional[Dict[str, Any]] = None
 
 
