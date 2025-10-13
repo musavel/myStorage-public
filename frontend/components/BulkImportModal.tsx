@@ -31,6 +31,11 @@ interface RemainingUrl {
   original_row?: Record<string, any>;
 }
 
+interface BlockedData {
+  download_token?: string;
+  remaining_count?: number;
+}
+
 export default function BulkImportModal({
   isOpen,
   onClose,
@@ -47,7 +52,7 @@ export default function BulkImportModal({
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [createdItems, setCreatedItems] = useState<ResultPreview[]>([]);
   const [isBlocked, setIsBlocked] = useState(false);
-  const [remainingUrls, setRemainingUrls] = useState<RemainingUrl[]>([]);
+  const [blockedData, setBlockedData] = useState<BlockedData | null>(null);
   const modalRef = useRef<HTMLDivElement>(null);
 
   // ESC 키로 닫기
@@ -118,7 +123,22 @@ export default function BulkImportModal({
       console.error('Failed to fetch mapping:', error);
     }
 
-    // 매핑이 없으면 바로 업로드
+    // 매핑이 없으면 안내 메시지 표시
+    const proceed = window.confirm(
+      '⚠️ 저장된 필드 매핑이 없습니다.\n\n' +
+      '권장 사항:\n' +
+      '1. 먼저 "단건 URL 스크래핑"으로 1개 항목을 등록하세요\n' +
+      '2. 스크래핑된 필드를 확인하고 매핑을 저장하세요\n' +
+      '3. 그 다음 CSV 일괄 등록을 진행하세요\n\n' +
+      '매핑 없이 계속 진행하시겠습니까?\n' +
+      '(스크래핑된 원본 필드명이 그대로 저장됩니다)'
+    );
+
+    if (!proceed) {
+      return;
+    }
+
+    // 사용자가 확인하면 매핑 없이 업로드
     await performUpload(false);
   };
 
@@ -198,7 +218,9 @@ export default function BulkImportModal({
                 });
               } else if (data.type === 'blocked') {
                 // Block 감지
-                console.log('[BLOCKED] 차단 감지:', data);
+                // console.log('[BLOCKED] 차단 감지:', data);
+                // console.log('[BLOCKED] download_token:', data.download_token);
+                // console.log('[BLOCKED] remaining_count:', data.remaining_count);
                 errors.push(data.message);
                 setProgress({
                   total: data.total,
@@ -208,7 +230,10 @@ export default function BulkImportModal({
                   errors: [...errors],
                 });
                 setIsBlocked(true);
-                setRemainingUrls(data.remaining_urls || []);
+                setBlockedData({
+                  download_token: data.download_token,
+                  remaining_count: data.remaining_count
+                });
                 setResult({
                   total: data.total,
                   success: data.success,
@@ -289,43 +314,35 @@ export default function BulkImportModal({
     handleClose();
   };
 
-  const handleDownloadRemainingUrls = () => {
-    if (remainingUrls.length === 0) return;
+  const handleDownloadRemainingUrls = async () => {
+    if (!blockedData?.download_token) return;
 
-    // CSV 생성 (UTF-8 BOM 포함)
-    const csvRows = ['title,URL,purchase_date'];
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`/api/scraper/download-remaining-csv/${blockedData.download_token}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-    // CSV 형식으로 이스케이프 (쉼표나 따옴표가 있을 수 있음)
-    const escapeCsv = (str: string) => {
-      if (!str) return '';  // null, undefined, 빈 문자열 처리
-      const stringValue = String(str);
-      if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
-        return `"${stringValue.replace(/"/g, '""')}"`;
+      if (!response.ok) {
+        throw new Error('CSV 다운로드 실패');
       }
-      return stringValue;
-    };
 
-    remainingUrls.forEach(item => {
-      // 원본 row 데이터가 있으면 그대로 사용
-      const row = item.original_row || {};
-      const title = row.title || row.Title || '';  // 대소문자 변형 대응
-      const url = item.url;
-      const purchaseDate = row.purchase_date || row.Purchase_date || '';
-
-      csvRows.push(`${escapeCsv(title)},${escapeCsv(url)},${escapeCsv(purchaseDate)}`);
-    });
-    const csvContent = '\uFEFF' + csvRows.join('\n');
-
-    // 다운로드
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${collection.slug}_remaining_urls.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+      // Blob으로 다운로드
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${collection.slug}_remaining_urls.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('CSV 다운로드 실패:', error);
+      alert('CSV 다운로드에 실패했습니다.');
+    }
   };
 
   if (!isOpen) return null;
@@ -515,7 +532,7 @@ export default function BulkImportModal({
               )}
 
               {/* Block 경고 및 남은 URL 다운로드 */}
-              {isBlocked && remainingUrls.length > 0 && (
+              {isBlocked && blockedData && blockedData.remaining_count && blockedData.remaining_count > 0 && (
                 <div className="mt-4 p-4 bg-amber-50 border-2 border-amber-300 rounded-lg">
                   <div className="flex items-start gap-3 mb-3">
                     <svg className="w-6 h-6 text-amber-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -526,7 +543,7 @@ export default function BulkImportModal({
                         처리 중단됨
                       </p>
                       <p className="text-sm text-amber-800">
-                        차단 또는 페이지 로딩 실패로 중단되었습니다. {remainingUrls.length}개 URL이 처리되지 않았습니다. 잠시 후 다시 시도해주세요.
+                        차단 또는 페이지 로딩 실패로 중단되었습니다. {blockedData.remaining_count}개 URL이 처리되지 않았습니다. 잠시 후 다시 시도해주세요.
                       </p>
                     </div>
                   </div>
@@ -538,7 +555,7 @@ export default function BulkImportModal({
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
-                    남은 URL CSV 다운로드 ({remainingUrls.length}건)
+                    남은 URL CSV 다운로드 ({blockedData.remaining_count}건)
                   </button>
                 </div>
               )}

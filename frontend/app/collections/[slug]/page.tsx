@@ -239,10 +239,14 @@ export default function CollectionItemsPage() {
       const query = searchQuery.toLowerCase();
       filtered = items.filter((item) => {
         if (searchField === 'all') {
-          // 모든 필드에서 검색
-          return Object.values(item.metadata).some((value) =>
-            String(value).toLowerCase().includes(query)
+          // 검색 가능한 필드에서만 검색
+          const searchableFields = fields.filter(
+            (field) => field.searchable === true || field.key === 'title'
           );
+          return searchableFields.some((field) => {
+            const value = item.metadata[field.key];
+            return value ? String(value).toLowerCase().includes(query) : false;
+          });
         } else {
           // 특정 필드에서만 검색
           const value = item.metadata[searchField];

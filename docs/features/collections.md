@@ -14,6 +14,7 @@
 - Title 필드 필수
 - AI 기반 필드 추천
 - Slug 자동 생성 (DeepL 번역)
+- 공개 여부 제어 (is_public)
 
 ---
 
@@ -28,6 +29,7 @@ CREATE TABLE collections (
     mongo_collection VARCHAR UNIQUE,
     icon VARCHAR,
     description VARCHAR,
+    is_public BOOLEAN NOT NULL DEFAULT TRUE,
     field_definitions JSONB,
     field_mapping JSONB,
     created_at TIMESTAMP DEFAULT NOW(),
@@ -68,6 +70,7 @@ CREATE TABLE collections (
 {
   "_id": ObjectId("..."),
   "collection_id": 1,
+  "is_public": true,
   "metadata": {
     "title": "클린 코드",
     "author": "로버트 C. 마틴",
@@ -142,12 +145,21 @@ CREATE TABLE collections (
 "보드게임" → "board-games"
 ```
 
+### DeepL API 미설정 시
+- **모달 열릴 때 DeepL 가용성 자동 체크**
+- DeepL 없으면:
+  - "DeepL 번역" 버튼 숨김
+  - Slug 필드 필수 입력 (빨간 테두리)
+  - 경고 메시지: "⚠️ DeepL API가 설정되지 않았습니다. 영문 슬러그를 직접 입력해주세요"
+  - 저장 시 slug 없으면 에러
+
 ### 수동 입력
 - "고급 옵션 표시" 토글
 - 직접 slug 입력 가능
 - URL-safe 검증 (소문자, 하이픈만)
 
-### Fallback
+### Fallback (저장 시 자동 생성)
+- DeepL 있고 slug 비어있으면 저장 시 자동 생성
 - 번역 실패 시 MD5 해시
 - 예: `collection-a3f4b2c1`
 
@@ -209,7 +221,7 @@ slug: "도서"
 
 ### 컬렉션 CRUD
 ```bash
-# 목록 조회 (Public)
+# 목록 조회 (Owner는 모든 항목, 일반 사용자는 공개 항목만)
 GET /api/collections
 
 # 단일 조회 (Public)
@@ -222,11 +234,16 @@ POST /api/collections
   "slug": "",  # 비어있으면 자동 생성
   "icon": "📚",
   "description": "개인 소장 도서",
+  "is_public": true,  # 공개 여부 (기본값: true)
   "field_definitions": {...}
 }
 
 # 수정 (Owner only)
 PUT /api/collections/{id}
+{
+  "name": "도서",
+  "is_public": false  # 비공개로 변경
+}
 
 # 삭제 (Owner only)
 DELETE /api/collections/{id}

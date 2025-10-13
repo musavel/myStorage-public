@@ -103,29 +103,6 @@ Authorization: Bearer {JWT}
 }
 ```
 
-### 일괄 스크래핑
-```bash
-POST /api/scraper/bulk-scrape
-Authorization: Bearer {JWT}
-
-{
-  "urls": ["url1", "url2", ...],
-  "collection_id": 1,
-  "apply_mapping": true
-}
-```
-
-### CSV 일괄 등록 (기본)
-```bash
-POST /api/scraper/bulk-scrape-csv
-Authorization: Bearer {JWT}
-Content-Type: multipart/form-data
-
-file: CSV 파일
-collection_id: 1
-apply_mapping: true
-```
-
 ### CSV 일괄 등록 (스트리밍)
 ```bash
 POST /api/scraper/bulk-scrape-csv-stream
@@ -140,7 +117,8 @@ apply_mapping: true
 **응답**: Server-Sent Events (SSE)
 - `type: 'start'` - 시작 (total 포함)
 - `type: 'progress'` - 진행 중 (current, total, success, failed, progress %, item 포함)
-- `type: 'error_item'` - 개별 아이템 실패
+- `type: 'error_item'` - 개별 아이템 실패 (스크래핑 실패 시 CSV 데이터로 아이템 생성, item 정보 포함)
+- `type: 'blocked'` - 차단 감지 (즉시 중단, download_token과 remaining_count 포함)
 - `type: 'complete'` - 완료 (total, success, failed)
 - `type: 'error'` - 전체 오류
 
@@ -162,6 +140,14 @@ apply_mapping: true
 3. CSV의 추가 컬럼 데이터를 스크래핑 결과에 병합 (title 제외)
 4. 필드 매핑 적용 (선택)
 5. 아이템 생성
+
+**Fallback 메커니즘** (스크래핑 실패 시):
+- 스크래핑 에러 발생 시 CSV 데이터만으로 아이템 자동 생성
+- `source_url` 포함하여 메타데이터 구성
+- 필드 매핑 적용 후 MongoDB에 저장
+- UI에는 "실패"로 표시 (failed_count 증가)
+- 생성된 아이템 정보는 `error_item` 이벤트에 포함
+- 예시: "행 5: 스크래핑 실패 (네트워크 오류). CSV 데이터로 아이템 생성됨."
 
 ---
 
@@ -194,8 +180,8 @@ title,URL,purchase_date
 ```
 사용자 → BulkImportModal → CSV 업로드
 → 저장된 매핑 확인 → 사용/사용 안 함 선택
-→ /api/scraper/bulk-scrape-csv → 실시간 진행 상황 표시
-→ 완료 후 자동 닫기
+→ /api/scraper/bulk-scrape-csv-stream → 실시간 진행 상황 표시 (SSE)
+→ 완료 후 결과 확인 및 수동 닫기
 ```
 
 ---
@@ -203,14 +189,36 @@ title,URL,purchase_date
 ## 에러 처리
 
 ### 크롤링 실패
-- 페이지 로드 실패: 타임아웃 또는 404
+
+#### 일반 에러 (계속 진행)
+- 페이지 로드 실패: 타임아웃, 404, 네트워크 오류 등
 - 파싱 실패: CSS 셀렉터 변경
-- → 각 URL별 에러 메시지 반환
+- **CSV 일괄 등록**: Fallback 메커니즘으로 CSV 데이터만 저장
+  - 스크래핑 실패 시 원본 CSV 데이터로 아이템 생성
+  - UI에 "실패"로 표시되지만 데이터는 저장됨
+  - 메시지: "행 N: 스크래핑 실패 (에러 내용). CSV 데이터로 아이템 생성됨."
+- **단건 등록**: 에러 메시지 표시 후 중단
+
+#### 차단 감지 (즉시 중단)
+- 트리거: "제목을 찾을 수 없습니다" 에러 발생 시
+- **단건**: "페이지가 차단되었거나 접근할 수 없습니다" 메시지 표시
+- **CSV 일괄**:
+  - 즉시 중단 (나머지 URL 처리 안 함)
+  - 남은 URL + 원본 CSV 데이터를 토큰 기반으로 다운로드 제공
+    - SSE 페이로드 크기 제한 해결: 전체 배열 대신 토큰만 전송
+    - 백엔드에서 CSV 생성 후 메모리에 임시 저장
+    - 프론트엔드는 토큰으로 `/api/scraper/download-remaining-csv/{token}` 호출
+  - 사용자가 나중에 재시도 가능
 
 ### CSV 형식 오류
 - 인코딩 오류: UTF-8이 아님
 - 헤더 없음: URL, link, 주소 중 하나 필요
 - → 상세 에러 메시지 반환
+
+### CSV 재등록 안정성
+- 남은 URL CSV 다운로드 시 메타데이터 보존
+- 토큰 기반 다운로드로 대용량 데이터 처리
+- 원본 CSV의 모든 컬럼 및 헤더 순서 유지
 
 ---
 

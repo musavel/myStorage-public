@@ -40,6 +40,7 @@ export default function CollectionModal({
   const [isTranslatingSlug, setIsTranslatingSlug] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [deeplAvailable, setDeeplAvailable] = useState<boolean | null>(null);
   const modalRef = useRef<HTMLDivElement>(null);
 
   // ESC 키로 닫기
@@ -93,6 +94,37 @@ export default function CollectionModal({
     }
   }, [collection, isOpen]);
 
+  // DeepL API 사용 가능 여부 확인
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const checkDeepL = async () => {
+      try {
+        const token = localStorage.getItem('auth_token');
+        const response = await fetch('/api/ai/translate-slug', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({ text: 'test' }),
+        });
+
+        const data = await response.json();
+        // DeepL API 키가 없으면 400 에러와 함께 특정 메시지 반환
+        if (!response.ok && data.detail?.includes('DeepL API 키')) {
+          setDeeplAvailable(false);
+        } else {
+          setDeeplAvailable(true);
+        }
+      } catch {
+        setDeeplAvailable(false);
+      }
+    };
+
+    checkDeepL();
+  }, [isOpen]);
+
   // AI를 사용한 슬러그 영문 번역
   const handleTranslateSlug = async () => {
     if (!name) {
@@ -132,6 +164,12 @@ export default function CollectionModal({
     setIsSaving(true);
 
     try {
+      // DeepL이 없고 slug가 비어있으면 에러
+      if (deeplAvailable === false && !slug.trim() && !collection) {
+        alert('DeepL API가 설정되지 않았습니다. 슬러그를 직접 입력해주세요.');
+        return;
+      }
+
       const collectionData = {
         name,
         slug: slug.trim() || undefined,  // 비어있으면 undefined (백엔드에서 자동 생성)
@@ -261,9 +299,9 @@ export default function CollectionModal({
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="block text-sm font-semibold text-slate-700">
-                  슬러그 (URL 주소) - 선택사항
+                  슬러그 (URL 주소){deeplAvailable === false && !collection ? ' *' : ' - 선택사항'}
                 </label>
-                {!collection && (
+                {!collection && deeplAvailable === true && (
                   <button
                     type="button"
                     onClick={handleTranslateSlug}
@@ -294,15 +332,20 @@ export default function CollectionModal({
                 type="text"
                 value={slug}
                 onChange={(e) => setSlug(e.target.value)}
-                className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-200 transition-all bg-slate-50"
-                placeholder={collection ? collection.slug : "비워두면 저장 시 자동 생성"}
+                className={`w-full px-4 py-3 border-2 rounded-xl focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-200 transition-all ${
+                  deeplAvailable === false && !collection ? 'border-red-300 bg-red-50/50' : 'border-slate-200 bg-slate-50'
+                }`}
+                placeholder={collection ? collection.slug : deeplAvailable === false ? "영문 slug 입력 (예: my-books)" : "비워두면 저장 시 자동 생성"}
                 disabled={!!collection}
+                required={deeplAvailable === false && !collection}
               />
               <p className="text-xs text-slate-500 mt-1.5">
                 {collection ? (
                   <span>⚠️ 기존 컬렉션의 슬러그는 변경할 수 없습니다</span>
+                ) : deeplAvailable === false ? (
+                  <span className="text-red-600">⚠️ <strong>DeepL API가 설정되지 않았습니다.</strong> 영문 슬러그를 직접 입력해주세요 (예: manga, board-games)</span>
                 ) : (
-                  <span>💡 비워두면 <strong>저장 시</strong> AI가 자동으로 영문 슬러그를 만듭니다 (예: manga, lego)</span>
+                  <span>💡 비워두면 <strong>저장 시</strong> DeepL AI가 자동으로 영문 슬러그를 만듭니다 (예: manga, lego)</span>
                 )}
               </p>
             </div>

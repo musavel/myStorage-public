@@ -1,6 +1,6 @@
 """스크래핑 API 엔드포인트"""
 from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Form
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, Response
 from sqlalchemy.orm import Session
 import logging
 import traceback
@@ -18,7 +18,8 @@ from ..services.scraper import scraper_service
 from ..services.scraper.csv_processor import (
     process_csv_file,
     get_collection_mapping,
-    bulk_scrape_csv_stream
+    bulk_scrape_csv_stream,
+    get_remaining_csv
 )
 
 logger = logging.getLogger(__name__)
@@ -163,3 +164,23 @@ async def bulk_scrape_from_csv_stream_endpoint(
             yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
 
     return StreamingResponse(generate(), media_type="text/event-stream")
+
+
+@router.get("/download-remaining-csv/{token}")
+async def download_remaining_csv_endpoint(
+    token: str,
+    email: str = Depends(require_owner),
+):
+    """차단된 남은 URL CSV 다운로드 (Owner only)"""
+    csv_content = get_remaining_csv(token)
+
+    if not csv_content:
+        raise HTTPException(status_code=404, detail="다운로드 토큰이 유효하지 않거나 만료되었습니다.")
+
+    return Response(
+        content=csv_content.encode('utf-8'),
+        media_type='text/csv; charset=utf-8',
+        headers={
+            'Content-Disposition': 'attachment; filename="remaining_urls.csv"'
+        }
+    )
