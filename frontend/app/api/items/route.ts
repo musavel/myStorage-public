@@ -12,7 +12,13 @@ export async function GET(request: NextRequest) {
 
   const authHeader = request.headers.get('authorization');
 
-  const response = await fetch(`${API_URL_INTERNAL}/api/items?collection_id=${collectionId}`, {
+  // 모든 쿼리 파라미터를 백엔드로 전달
+  const backendUrl = new URL(`${API_URL_INTERNAL}/api/items`);
+  searchParams.forEach((value, key) => {
+    backendUrl.searchParams.append(key, value);
+  });
+
+  const response = await fetch(backendUrl.toString(), {
     cache: 'no-store',
     headers: {
       ...(authHeader ? { 'Authorization': authHeader } : {}),

@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from datetime import datetime
 
 
@@ -50,3 +50,12 @@ class FieldSchema(BaseModel):
 class CollectionSchema(BaseModel):
     """컬렉션 스키마 (PostgreSQL Collection.schema 필드용)"""
     fields: list[FieldSchema] = Field(default_factory=list)
+
+
+class PaginatedItemsResponse(BaseModel):
+    """페이지네이션된 아이템 목록 응답"""
+    items: List[ItemResponse]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int

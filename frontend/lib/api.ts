@@ -38,6 +38,14 @@ export interface Item {
   updated_at?: string;
 }
 
+export interface PaginatedItems {
+  items: Item[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
 // Collections
 export async function getCollections(): Promise<Collection[]> {
   const res = await fetch(`${API_URL}/api/collections`, { cache: 'no-store' }); // 백엔드에서 자동으로 공개 항목만 조회
@@ -59,8 +67,8 @@ export async function getCollectionBySlug(slug: string): Promise<Collection> {
 }
 
 // Items
-export async function getItems(collectionId: number): Promise<Item[]> {
-  const res = await fetch(`${API_URL}/api/items?collection_id=${collectionId}`, { cache: 'no-store' });
+export async function getItems(collectionId: number, page: number = 1, pageSize: number = 30): Promise<PaginatedItems> {
+  const res = await fetch(`${API_URL}/api/items?collection_id=${collectionId}&page=${page}&page_size=${pageSize}`, { cache: 'no-store' });
   if (!res.ok) throw new Error('Failed to fetch items');
   return res.json();
 }

@@ -183,6 +183,10 @@ export default function CollectionItemsPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const pageSize = 30;
 
   const handleItemClick = (item: Item) => {
     setSelectedItem(item);
@@ -200,9 +204,15 @@ export default function CollectionItemsPage() {
 
   useEffect(() => {
     if (collection) {
+      setCurrentPage(1); // 검색/정렬 변경 시 첫 페이지로
+    }
+  }, [searchQuery, searchField, sortKey, sortOrder]);
+
+  useEffect(() => {
+    if (collection) {
       fetchItems();
     }
-  }, [collection]);
+  }, [collection, currentPage, searchQuery, searchField, sortKey, sortOrder]);
 
   const fetchCollection = async () => {
     try {
@@ -216,10 +226,28 @@ export default function CollectionItemsPage() {
   const fetchItems = async () => {
     if (!collection) return;
 
+    setIsLoading(true);
     try {
-      const res = await fetch(`/api/items?collection_id=${collection.id}`); // 백엔드에서 자동으로 공개 항목만 조회
+      // URL 파라미터 구성
+      const params = new URLSearchParams({
+        collection_id: collection.id.toString(),
+        page: currentPage.toString(),
+        page_size: pageSize.toString(),
+        sort_key: sortKey,
+        sort_order: sortOrder,
+      });
+
+      // 검색 파라미터 추가
+      if (searchQuery) {
+        params.append('search_query', searchQuery);
+        params.append('search_field', searchField);
+      }
+
+      const res = await fetch(`/api/items?${params.toString()}`); // 백엔드에서 자동으로 공개 항목만 조회
       const data = await res.json();
-      setItems(data);
+      setItems(data.items);
+      setTotalPages(data.total_pages);
+      setTotalItems(data.total);
     } catch (error) {
       console.error('Failed to fetch items:', error);
     } finally {
@@ -230,51 +258,8 @@ export default function CollectionItemsPage() {
   // 필드 정의 가져오기
   const fields: FieldDefinition[] = collection?.field_definitions?.fields || [];
 
-  // 검색 및 정렬된 아이템
-  const filteredAndSortedItems = useMemo(() => {
-    let filtered = items;
-
-    // 검색
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      filtered = items.filter((item) => {
-        if (searchField === 'all') {
-          // 검색 가능한 필드에서만 검색
-          const searchableFields = fields.filter(
-            (field) => field.searchable === true || field.key === 'title'
-          );
-          return searchableFields.some((field) => {
-            const value = item.metadata[field.key];
-            return value ? String(value).toLowerCase().includes(query) : false;
-          });
-        } else {
-          // 특정 필드에서만 검색
-          const value = item.metadata[searchField];
-          return value ? String(value).toLowerCase().includes(query) : false;
-        }
-      });
-    }
-
-    // 정렬
-    const sorted = [...filtered].sort((a, b) => {
-      let aValue: any;
-      let bValue: any;
-
-      if (sortKey === 'created_at') {
-        aValue = new Date(a.created_at).getTime();
-        bValue = new Date(b.created_at).getTime();
-      } else {
-        aValue = a.metadata[sortKey] || '';
-        bValue = b.metadata[sortKey] || '';
-      }
-
-      if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
-      if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
-      return 0;
-    });
-
-    return sorted;
-  }, [items, searchQuery, searchField, sortKey, sortOrder]);
+  // 서버에서 이미 검색/정렬된 아이템을 그대로 사용
+  const filteredAndSortedItems = items;
 
   if (!collection) {
     return (
@@ -407,17 +392,52 @@ export default function CollectionItemsPage() {
           </div>
         </div>
 
-        {/* 결과 건수 */}
+        {/* 결과 건수 및 페이지네이션 */}
         {!isLoading && (
-          <div className="mb-4">
+          <div className="mb-4 flex justify-between items-center">
             <p className="text-sm text-slate-600">
-              총 <span className="font-semibold text-slate-900">{filteredAndSortedItems.length}</span>건
-              {searchQuery && (
-                <span className="text-slate-500 ml-1">
-                  (전체 {items.length}건 중 검색됨)
-                </span>
-              )}
+              총 <span className="font-semibold text-slate-900">{totalItems}</span>건
+              <span className="text-slate-500 ml-1">
+                (현재 페이지: {filteredAndSortedItems.length}건)
+              </span>
             </p>
+
+            {/* 페이지네이션 */}
+            {totalPages > 1 && (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCurrentPage(1)}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1 border-2 border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                >
+                  처음
+                </button>
+                <button
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1 border-2 border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                >
+                  이전
+                </button>
+                <span className="px-4 py-1 text-sm font-semibold text-slate-700">
+                  {currentPage} / {totalPages}
+                </span>
+                <button
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1 border-2 border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                >
+                  다음
+                </button>
+                <button
+                  onClick={() => setCurrentPage(totalPages)}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1 border-2 border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                >
+                  마지막
+                </button>
+              </div>
+            )}
           </div>
         )}
 

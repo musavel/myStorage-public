@@ -2,9 +2,9 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import select
 from fastapi import HTTPException
-from typing import List, Dict, Any
+from typing import Dict, Any, Optional
 from bson import ObjectId
-from datetime import datetime
+from datetime import datetime, timezone
 
 from backend.app.models import Collection
 from backend.app.schemas.item import ItemCreate, ItemUpdate
@@ -32,14 +32,60 @@ async def get_mongo_collection_name(collection_id: int, db: Session) -> str:
     return collection.mongo_collection
 
 
-async def get_all_items(collection_id: int, db: Session, is_owner: bool = False) -> List[Dict[str, Any]]:
-    """아이템 목록 조회"""
+async def get_all_items(
+    collection_id: int,
+    db: Session,
+    is_owner: bool = False,
+    page: int = 1,
+    page_size: int = 30,
+    search_query: Optional[str] = None,
+    search_field: Optional[str] = None,
+    sort_key: str = "created_at",
+    sort_order: str = "desc"
+) -> Dict[str, Any]:
+    """아이템 목록 조회 (페이지네이션, 검색, 정렬)"""
     mongo_collection_name = await get_mongo_collection_name(collection_id, db)
 
     mongo_db = get_database()
     query = {} if is_owner else {"is_public": True}
-    items = await mongo_db[mongo_collection_name].find(query).to_list(1000)
-    return [item_helper(item) for item in items]
+
+    # 검색 조건 추가
+    if search_query and search_field:
+        if search_field == "all":
+            # 전체 검색: metadata의 모든 값에서 검색 (정규식 사용)
+            query["$or"] = [
+                {f"metadata.{key}": {"$regex": search_query, "$options": "i"}}
+                for key in ["title", "author", "publisher", "category"]  # 주요 필드만
+            ]
+        else:
+            # 특정 필드 검색
+            query[f"metadata.{search_field}"] = {"$regex": search_query, "$options": "i"}
+
+    # 전체 개수 조회
+    total = await mongo_db[mongo_collection_name].count_documents(query)
+
+    # 정렬 설정
+    sort_direction = -1 if sort_order == "desc" else 1
+    if sort_key == "created_at":
+        sort_by = [("created_at", sort_direction)]
+    else:
+        # 메타데이터 필드로 정렬
+        sort_by = [(f"metadata.{sort_key}", sort_direction)]
+
+    # 페이지네이션 계산
+    skip = (page - 1) * page_size
+    total_pages = (total + page_size - 1) // page_size  # 올림 계산
+
+    # 아이템 조회
+    items = await mongo_db[mongo_collection_name].find(query).sort(sort_by).skip(skip).limit(page_size).to_list(page_size)
+
+    return {
+        "items": [item_helper(item) for item in items],
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": total_pages
+    }
 
 
 async def get_item_by_id(
@@ -88,7 +134,7 @@ async def create_item(item_data: ItemCreate, db: Session) -> Dict[str, Any]:
         elif not item_dict.get("title"):
             item_dict["title"] = "Untitled"
 
-    item_dict["created_at"] = datetime.utcnow()
+    item_dict["created_at"] = datetime.now(timezone.utc)
     item_dict["updated_at"] = None
 
     result = await mongo_db[mongo_collection_name].insert_one(item_dict)
@@ -119,7 +165,7 @@ async def update_item(
     # 업데이트할 필드만 추출
     update_data = {k: v for k, v in item_data.model_dump(exclude_unset=True).items()}
     if update_data:
-        update_data["updated_at"] = datetime.utcnow()
+        update_data["updated_at"] = datetime.now(timezone.utc)
         await mongo_db[mongo_collection_name].update_one(
             {"_id": ObjectId(item_id)},
             {"$set": update_data}
