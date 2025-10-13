@@ -147,6 +147,9 @@ docker exec "$MONGO_CONTAINER" mongosh "$MONGO_DB" \
     --authenticationDatabase admin \
     --eval "db.dropDatabase()" >/dev/null
 
+# macOS 리소스 포크 파일 제거 (._*)
+find "$MONGO_BACKUP_DIR" -name "._*" -type f -delete 2>/dev/null || true
+
 # 백업 파일 복사
 docker cp "$MONGO_BACKUP_DIR" "$MONGO_CONTAINER:/tmp/mongodb_restore"
 

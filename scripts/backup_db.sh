@@ -150,7 +150,8 @@ EOF
 # 압축 (선택 사항)
 echo -e "${BLUE}📦 백업 압축 중...${NC}"
 cd "$BACKUP_DIR"
-tar -czf "${BACKUP_NAME}.tar.gz" "$BACKUP_NAME"
+# macOS의 ._* 파일(리소스 포크) 제외
+COPYFILE_DISABLE=1 tar --exclude='._*' -czf "${BACKUP_NAME}.tar.gz" "$BACKUP_NAME"
 COMPRESSED_SIZE=$(du -h "${BACKUP_NAME}.tar.gz" | cut -f1)
 
 # 원본 디렉토리 삭제
