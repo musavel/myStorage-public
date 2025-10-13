@@ -151,11 +151,17 @@ docker exec "$MONGO_CONTAINER" mongosh "$MONGO_DB" \
 echo -e "${YELLOW}   macOS 리소스 포크 파일 정리 중...${NC}"
 find "$MONGO_BACKUP_DIR" -name "._*" -type f -delete 2>/dev/null || true
 
-# 백업 파일 복사 (mongodb 디렉토리 내용만)
-docker cp "$MONGO_BACKUP_DIR/." "$MONGO_CONTAINER:/tmp/mongodb_restore/"
+# 임시 복원 디렉토리 생성 (mongorestore가 기대하는 구조)
+TEMP_RESTORE_DIR=$(mktemp -d)
+mkdir -p "$TEMP_RESTORE_DIR/$MONGO_DB"
+cp "$MONGO_BACKUP_DIR"/*.bson "$TEMP_RESTORE_DIR/$MONGO_DB/" 2>/dev/null || true
+cp "$MONGO_BACKUP_DIR"/*.metadata.json "$TEMP_RESTORE_DIR/$MONGO_DB/" 2>/dev/null || true
 
-# Docker 컨테이너 내부에서도 ._* 파일 제거
-docker exec "$MONGO_CONTAINER" sh -c 'find /tmp/mongodb_restore -name "._*" -type f -delete 2>/dev/null || true'
+# 백업 파일 복사
+docker cp "$TEMP_RESTORE_DIR/." "$MONGO_CONTAINER:/tmp/mongodb_restore/"
+
+# 로컬 임시 디렉토리 삭제
+rm -rf "$TEMP_RESTORE_DIR"
 
 # mongorestore 실행
 echo -e "${YELLOW}   데이터 복원 중...${NC}"
@@ -163,8 +169,7 @@ docker exec "$MONGO_CONTAINER" mongorestore \
     --username="$MONGO_USER" \
     --password="$MONGO_PASSWORD" \
     --authenticationDatabase=admin \
-    --nsInclude="${MONGO_DB}.*" \
-    /tmp/mongodb_restore 2>&1 | grep -v "deprecated"
+    /tmp/mongodb_restore
 
 # 임시 파일 삭제
 docker exec "$MONGO_CONTAINER" rm -rf /tmp/mongodb_restore
