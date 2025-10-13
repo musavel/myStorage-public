@@ -148,10 +148,14 @@ docker exec "$MONGO_CONTAINER" mongosh "$MONGO_DB" \
     --eval "db.dropDatabase()" >/dev/null
 
 # macOS 리소스 포크 파일 제거 (._*)
+echo -e "${YELLOW}   macOS 리소스 포크 파일 정리 중...${NC}"
 find "$MONGO_BACKUP_DIR" -name "._*" -type f -delete 2>/dev/null || true
 
-# 백업 파일 복사
-docker cp "$MONGO_BACKUP_DIR" "$MONGO_CONTAINER:/tmp/mongodb_restore"
+# 백업 파일 복사 (mongodb 디렉토리 내용만)
+docker cp "$MONGO_BACKUP_DIR/." "$MONGO_CONTAINER:/tmp/mongodb_restore/"
+
+# Docker 컨테이너 내부에서도 ._* 파일 제거
+docker exec "$MONGO_CONTAINER" sh -c 'find /tmp/mongodb_restore -name "._*" -type f -delete 2>/dev/null || true'
 
 # mongorestore 실행
 echo -e "${YELLOW}   데이터 복원 중...${NC}"
@@ -159,8 +163,8 @@ docker exec "$MONGO_CONTAINER" mongorestore \
     --username="$MONGO_USER" \
     --password="$MONGO_PASSWORD" \
     --authenticationDatabase=admin \
-    --db="$MONGO_DB" \
-    /tmp/mongodb_restore >/dev/null
+    --nsInclude="${MONGO_DB}.*" \
+    /tmp/mongodb_restore 2>&1 | grep -v "deprecated"
 
 # 임시 파일 삭제
 docker exec "$MONGO_CONTAINER" rm -rf /tmp/mongodb_restore
