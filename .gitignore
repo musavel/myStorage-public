@@ -65,3 +65,6 @@ ai-model-selection-feature.tar.gzdata/
 
 # EC2
 *.pem
+
+# Data
+data/*
