@@ -7,7 +7,8 @@ myStorage 개인 소장품 관리 시스템 문서 모음
 ## 🚀 빠른 시작
 
 프로젝트를 처음 시작한다면:
-- [프로젝트 README](../README.md) - 설치 및 실행 가이드
+- [프로젝트 README](../README.md) - 로컬 개발 및 EC2 배포 가이드
+- [배포 스크립트](../scripts/README.md#-배포) - EC2/서버 자동 배포 가이드
 
 ---
 
@@ -58,6 +59,7 @@ myStorage 개인 소장품 관리 시스템 문서 모음
 - [인증 및 보안](./guides/authentication.md) - Google OAuth 2.0 설정
 - [컬렉션 예시](./guides/collection-examples.md) - 도서, 보드게임, 영화 등
 - [스크래핑 필드](./guides/scraper-fields.md) - 교보문고/알라딘 필드 매핑
+- [EC2 배포 가이드](../scripts/README.md#-배포) - EC2/서버 자동 배포
 
 ---
 

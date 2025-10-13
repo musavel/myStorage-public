@@ -124,12 +124,14 @@
 
 ## 빠른 시작
 
-### 필수 요구사항
+### 로컬 개발 환경
+
+#### 필수 요구사항
 - [mise](https://mise.jdx.dev/)
 - [uv](https://docs.astral.sh/uv/)
 - Docker & Docker Compose
 
-### 1. 환경 설정
+#### 1. 환경 설정
 
 ```bash
 # .env 파일 생성
@@ -175,7 +177,7 @@ NEXT_PUBLIC_OWNER_NAME=Your Name
 - `OWNER_NAME` / `NEXT_PUBLIC_OWNER_NAME`: 메인 페이지에 "{이름}'s Storage"로 표시
 - `OPENAI_API_KEY`, `GEMINI_API_KEY`: AI 필드 추천 기능 사용 시 필요 (선택사항)
 
-### 2. Google OAuth 설정
+#### 2. Google OAuth 설정
 
 1. [Google Cloud Console](https://console.cloud.google.com/) 접속
 2. 프로젝트 생성
@@ -186,7 +188,7 @@ NEXT_PUBLIC_OWNER_NAME=Your Name
    - 승인된 리디렉션 URI: `http://localhost:3000`
 5. 클라이언트 ID와 시크릿을 `.env`에 복사
 
-### 3. Docker로 실행
+#### 3. Docker로 실행
 
 ```bash
 # 전체 서비스 실행
@@ -201,7 +203,7 @@ docker-compose up -d --build
 - 백엔드 API: http://localhost:8000
 - API 문서 (Swagger): http://localhost:8000/docs
 
-### 4. 개발 환경 설정 (선택)
+#### 4. 개발 환경 설정 (선택)
 
 로컬에서 개발하려면:
 
@@ -220,6 +222,30 @@ cd frontend
 npm install
 npm run dev
 ```
+
+---
+
+### EC2/서버 배포
+
+**한 줄 명령어로 EC2에 배포하기:**
+
+```bash
+./scripts/deploy.sh
+```
+
+이 스크립트는 환경 설정 검증, Docker 설치 확인, 데이터 백업, 이미지 빌드, 서비스 시작, 헬스 체크를 자동으로 수행합니다.
+
+**빠른 시작:**
+
+1. EC2 인스턴스 생성 (Ubuntu/Amazon Linux)
+2. Docker 설치 및 프로젝트 클론
+3. `.env` 파일 설정 (DB 비밀번호, API 키 등)
+4. `./scripts/deploy.sh` 실행
+
+**상세한 가이드:**
+- [EC2 배포 완벽 가이드](./scripts/README.md#-배포) - 사전 준비, 보안 그룹, 트러블슈팅, 프로덕션 설정 등
+
+---
 
 ## 프로젝트 구조
 
@@ -290,8 +316,13 @@ myStorage/
 │   │           └── [slug]/items/     # 아이템 관리 페이지
 │   └── lib/
 │       └── api.ts                    # API 클라이언트
-├── scripts/
-│   └── reset_database.sh             # DB 초기화 스크립트
+├── scripts/                          # 유틸리티 스크립트
+│   ├── deploy.sh                     # EC2 자동 배포
+│   ├── backup_db.sh                  # DB 백업
+│   ├── restore_db.sh                 # DB 복원
+│   ├── reset_database.sh             # DB 초기화
+│   ├── update_series.py              # 시리즈 일괄 업데이트
+│   └── README.md                     # 스크립트 사용 가이드
 ├── .mise.toml                        # 개발 도구 버전
 ├── pyproject.toml                    # Python 의존성
 ├── docker-compose.yml                # Docker 서비스 (PostgreSQL + MongoDB)

@@ -62,3 +62,6 @@ client_secret_50044611935-gbd11eepnk5jmkqmhaouilh75qlsdhnr.apps.googleuserconten
 COMMIT_MESSAGE.txt
 ai-model-selection-feature/
 ai-model-selection-feature.tar.gzdata/
+
+# EC2
+*.pem
