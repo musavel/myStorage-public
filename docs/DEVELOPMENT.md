@@ -61,7 +61,7 @@ npm run dev
 - **Motor** - Async MongoDB 드라이버
 
 ### 프론트엔드
-- **Next.js 14 App Router** - React 프레임워크
+- **Next.js 15 App Router** - React 프레임워크
 - **TypeScript** - 타입 안전성
 - **Tailwind CSS** - Utility-first CSS
 - **Warehouse 테마** - Amber/Slate/Stone 컬러

@@ -63,7 +63,7 @@ async def get_field_mapping(collection_id: int, db: Session) -> dict:
     if not collection:
         raise HTTPException(status_code=404, detail="컬렉션을 찾을 수 없습니다.")
 
-    return {"mapping": collection.field_mapping or {}}
+    return collection.field_mapping or {}
 
 
 async def delete_field_mapping(collection_id: int, db: Session) -> dict:

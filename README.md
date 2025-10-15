@@ -27,7 +27,7 @@
 - **Playwright** - 웹 스크래핑
 
 ### 프론트엔드
-- **Next.js 14** - React 프레임워크
+- **Next.js 15** - React 프레임워크
 - **TypeScript**
 - **Tailwind CSS** - 스타일링
 - **@react-oauth/google** - Google OAuth 클라이언트

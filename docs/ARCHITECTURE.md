@@ -23,7 +23,7 @@ myStorage는 개인 소장품을 체계적으로 관리하는 웹 애플리케�
 - **Playwright** - 웹 스크래핑
 
 ### 프론트엔드
-- **Next.js 14** - React 프레임워크 (App Router)
+- **Next.js 15** - React 프레임워크 (App Router)
 - **TypeScript**
 - **Tailwind CSS** - 스타일링
 - **@react-oauth/google** - OAuth 클라이언트
