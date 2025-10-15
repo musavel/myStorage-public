@@ -493,7 +493,7 @@ OPENAI_API_KEY=sk-proj-...
 GEMINI_API_KEY=AIzaSy...
 ```
 
-자세한 설정 방법은 [docs/AI_SETUP.md](./docs/AI_SETUP.md)를 참고하세요.
+자세한 설정 방법은 [docs/guides/ai-setup.md](./docs/guides/ai-setup.md)를 참고하세요.
 
 ## 보안 및 인증
 
@@ -513,7 +513,7 @@ GEMINI_API_KEY=AIzaSy...
 사용자 → Google OAuth → 프론트엔드 → 백엔드 (JWT 발급) → localStorage 저장
 ```
 
-자세한 내용은 [docs/AUTHENTICATION.md](./docs/AUTHENTICATION.md)를 참고하세요.
+자세한 내용은 [docs/guides/authentication.md](./docs/guides/authentication.md)를 참고하세요.
 
 ### 보안 주의사항
 ⚠️ 프론트엔드의 인증 체크는 UX 개선용이며, **실제 보안은 백엔드에서 처리**됩니다.

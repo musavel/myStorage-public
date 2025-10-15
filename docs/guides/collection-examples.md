@@ -124,7 +124,7 @@
 **💡 스크래핑 활용 팁:**
 - 교보문고/알라딘에서 URL 스크래핑 시 `author`, `publisher`, `isbn`, `publication_date`, `pages`, `category`, `price`, `description`, `image_url` 필드가 자동으로 채워집니다.
 - 위 필드 정의를 사용하면 스크래핑 데이터와 1:1 매핑되어 편리합니다.
-- 자세한 내용은 [SCRAPER_FIELDS.md](./SCRAPER_FIELDS.md)를 참고하세요.
+- 자세한 내용은 [scraper-fields.md](./scraper-fields.md)를 참고하세요.
 
 ---
 

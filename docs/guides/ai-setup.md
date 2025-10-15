@@ -302,7 +302,7 @@ Failed to parse AI response
 - [ ] 언어 선택 (영어/한국어)
 
 ### 중기
-- [ ] Few-shot learning ([COLLECTION_EXAMPLES.md](./COLLECTION_EXAMPLES.md) 활용)
+- [ ] Few-shot learning ([collection-examples.md](./collection-examples.md) 활용)
 - [ ] 사용자 피드백 반영 (좋아요/싫어요)
 - [ ] 필드 설명(help_text) 자동 생성
 
@@ -314,5 +314,5 @@ Failed to parse AI response
 ---
 
 ## 관련 문서
-- [컬렉션 예시](./COLLECTION_EXAMPLES.md) - 다양한 컬렉션 타입별 필드 정의 예시
-- [개발 진행 상황](./DEVELOPMENT.md) - AI 기능 개발 히스토리
+- [컬렉션 예시](./collection-examples.md) - 다양한 컬렉션 타입별 필드 정의 예시
+- [개발 진행 상황](../DEVELOPMENT.md) - AI 기능 개발 히스토리
